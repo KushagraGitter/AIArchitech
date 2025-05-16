@@ -1,4 +1,4 @@
-// The evaluateSystemDesign flow evaluates a system design against given requirements, providing feedback on scalability, availability, fault tolerance, and cost efficiency.
+// The evaluateSystemDesign flow evaluates a system design against given requirements, providing feedback on scalability, availability, fault tolerance, cost efficiency, security, and maintainability.
 //
 // - evaluateSystemDesign - A function that evaluates the system design.
 // - EvaluateSystemDesignInput - The input type for the evaluateSystemDesign function.
@@ -12,20 +12,31 @@ import {z} from 'genkit';
 const EvaluateSystemDesignInputSchema = z.object({
   requirements: z
     .string()
-    .describe('The system requirements, as a natural language description.'),
+    .describe('The system requirements, as a natural language description. Include functional and non-functional requirements if available (e.g., target number of users, expected uptime, specific technologies to use/avoid, budget constraints).'),
   designDiagram: z
     .string()
-    .describe('The system design diagram, as a JSON string representing the components and their relationships.'),
+    .describe("The system design diagram, as a JSON string. This JSON should represent an object with two keys: 'nodes' and 'edges'. 'nodes' is an array of objects, each representing a component with properties like id, type, position, and data (e.g., label, iconName). 'edges' is an array of objects, each representing a connection between components with properties like id, source node id, and target node id."),
 });
 export type EvaluateSystemDesignInput = z.infer<typeof EvaluateSystemDesignInputSchema>;
 
+const EvaluationCriterionSchema = z.object({
+  rating: z.enum(['Excellent', 'Good', 'Fair', 'Poor', 'Needs Improvement', 'Not Applicable']).describe('The rating for this criterion.'),
+  explanation: z.string().describe('Detailed explanation and reasoning for the rating. Highlight specific aspects of the design that led to this rating.'),
+  specificRecommendations: z.array(z.string()).optional().describe('Actionable recommendations to improve this specific criterion. Be specific (e.g., "Consider adding a read replica for the primary database to improve read scalability.").'),
+});
+
 const EvaluateSystemDesignOutputSchema = z.object({
-  complexity: z.string().describe('The complexity of the system design.'),
-  scalability: z.string().describe('The scalability of the system design.'),
-  availability: z.string().describe('The availability of the system design.'),
-  faultTolerance: z.string().describe('The fault tolerance of the system design.'),
-  costEfficiency: z.string().describe('The cost efficiency of the system design.'),
-  suggestions: z.string().describe('Suggestions for improving the system design.'),
+  overallAssessment: z.string().describe('A brief (2-3 sentences) overall summary of the system design evaluation, highlighting the most critical findings.'),
+  complexity: EvaluationCriterionSchema.describe('Evaluation of the system design complexity. Consider factors like number of components, interdependencies, and ease of understanding.'),
+  scalability: EvaluationCriterionSchema.describe('Evaluation of the system design scalability. Assess its ability to handle increased load (users, data, transactions) both horizontally and vertically.'),
+  availability: EvaluationCriterionSchema.describe('Evaluation of the system design availability and resilience. Consider single points of failure, redundancy, and failover mechanisms.'),
+  faultTolerance: EvaluationCriterionSchema.describe('Evaluation of the system design fault tolerance. How well does the system withstand and recover from component failures?'),
+  costEfficiency: EvaluationCriterionSchema.describe('Evaluation of the system design cost-efficiency. Consider resource utilization, choice of services, and potential for optimization. Avoid specific monetary values unless provided in requirements.'),
+  security: EvaluationCriterionSchema.describe('Evaluation of the system design security. Consider data protection, authentication, authorization, network security, and common vulnerabilities.'),
+  maintainability: EvaluationCriterionSchema.describe('Evaluation of the system design maintainability. Consider ease of updates, debugging, monitoring, and operational overhead.'),
+  suggestionsForImprovement: z.array(z.string()).describe('General suggestions for improving the overall system design, particularly those not tied to a single criterion above or cross-cutting concerns.'),
+  identifiedStrengths: z.array(z.string()).optional().describe('Key strengths or well-implemented aspects identified in the design.'),
+  potentialRisks: z.array(z.string()).optional().describe('Potential risks or critical concerns that need attention, beyond what is covered in individual criteria explanations.'),
 });
 export type EvaluateSystemDesignOutput = z.infer<typeof EvaluateSystemDesignOutputSchema>;
 
@@ -37,28 +48,63 @@ const prompt = ai.definePrompt({
   name: 'evaluateSystemDesignPrompt',
   input: {schema: EvaluateSystemDesignInputSchema},
   output: {schema: EvaluateSystemDesignOutputSchema},
-  prompt: `You are an expert system architect. You will evaluate a system design based on the given requirements and provide feedback on various aspects.
+  prompt: `You are an expert system architect with years of experience designing and reviewing complex, scalable, and resilient systems. Your task is to evaluate a given system design based on the provided requirements and diagram.
 
-Requirements: {{{requirements}}}
+System Requirements:
+{{{requirements}}}
 
-Design Diagram:
-{{#if designDiagram}}{{{designDiagram}}}{{else}}No diagram provided.{{/if}}
+System Design Diagram (JSON representation of nodes and edges):
+{{#if designDiagram}}{{{designDiagram}}}{{else}}No diagram provided. Evaluate based on requirements only if possible, or state that a diagram is needed for a full evaluation.{{/if}}
 
-Evaluate the design in terms of complexity, scalability, availability, fault tolerance, and cost efficiency. Provide specific suggestions for improvement.
+Carefully analyze the requirements and the diagram (if provided). Provide a comprehensive evaluation structured according to the output schema. For each criterion (Complexity, Scalability, Availability, Fault Tolerance, Cost Efficiency, Security, Maintainability), provide a rating, a detailed explanation for that rating, and specific, actionable recommendations for improvement if applicable.
 
-Ensure the output is well-structured and easy to understand.
+Your evaluation should be constructive, insightful, and practical. Assume the user is looking for guidance to improve their design.
 
-Complexity: 
+Output Structure:
+
+Overall Assessment: (Provide a brief overall summary here)
+
+Complexity:
+  Rating: (Excellent, Good, Fair, Poor, Needs Improvement, Not Applicable)
+  Explanation: (Detailed explanation)
+  Specific Recommendations: (Array of specific recommendations, if any)
 
 Scalability:
+  Rating: (Excellent, Good, Fair, Poor, Needs Improvement, Not Applicable)
+  Explanation: (Detailed explanation)
+  Specific Recommendations: (Array of specific recommendations, if any)
 
 Availability:
+  Rating: (Excellent, Good, Fair, Poor, Needs Improvement, Not Applicable)
+  Explanation: (Detailed explanation)
+  Specific Recommendations: (Array of specific recommendations, if any)
 
 Fault Tolerance:
+  Rating: (Excellent, Good, Fair, Poor, Needs Improvement, Not Applicable)
+  Explanation: (Detailed explanation)
+  Specific Recommendations: (Array of specific recommendations, if any)
 
 Cost Efficiency:
+  Rating: (Excellent, Good, Fair, Poor, Needs Improvement, Not Applicable)
+  Explanation: (Detailed explanation)
+  Specific Recommendations: (Array of specific recommendations, if any)
 
-Suggestions: `,
+Security:
+  Rating: (Excellent, Good, Fair, Poor, Needs Improvement, Not Applicable)
+  Explanation: (Detailed explanation)
+  Specific Recommendations: (Array of specific recommendations, if any)
+
+Maintainability:
+  Rating: (Excellent, Good, Fair, Poor, Needs Improvement, Not Applicable)
+  Explanation: (Detailed explanation)
+  Specific Recommendations: (Array of specific recommendations, if any)
+
+Suggestions For Improvement: (Array of general suggestions)
+
+Identified Strengths: (Array of identified strengths, if any)
+
+Potential Risks: (Array of potential risks, if any)
+`,
 });
 
 const evaluateSystemDesignFlow = ai.defineFlow(
@@ -69,6 +115,9 @@ const evaluateSystemDesignFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output) {
+      throw new Error('AI failed to generate an evaluation.');
+    }
+    return output;
   }
 );
