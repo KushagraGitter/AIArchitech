@@ -1,24 +1,53 @@
+
 "use client";
 
 import * as React from "react";
-import { Moon, Sun } from "lucide-react";
+import { Laptop, Moon, Palette, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+const themes = [
+  { name: "Light", value: "light", icon: Sun },
+  { name: "Dark", value: "dark", icon: Moon },
+  { name: "Ocean", value: "theme-ocean", icon: Palette }, // Using Palette as a generic theme icon
+  { name: "Forest", value: "theme-forest", icon: Palette }, // Using Palette as a generic theme icon
+  { name: "System", value: "system", icon: Laptop },
+];
 
 export function ThemeToggleButton() {
-  const { theme, setTheme } = useTheme();
+  const { setTheme, theme: activeTheme } = useTheme();
 
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-      aria-label="Toggle theme"
-    >
-      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-      <span className="sr-only">Toggle theme</span>
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Select theme">
+          {activeTheme === 'light' && <Sun className="h-[1.2rem] w-[1.2rem]" />}
+          {activeTheme === 'dark' && <Moon className="h-[1.2rem] w-[1.2rem]" />}
+          {activeTheme === 'theme-ocean' && <Palette className="h-[1.2rem] w-[1.2rem]" />}
+          {activeTheme === 'theme-forest' && <Palette className="h-[1.2rem] w-[1.2rem]" />}
+          {activeTheme === 'system' && <Laptop className="h-[1.2rem] w-[1.2rem]" />}
+          <span className="sr-only">Select theme</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {themes.map((theme) => (
+          <DropdownMenuItem
+            key={theme.value}
+            onClick={() => setTheme(theme.value)}
+            className="cursor-pointer"
+          >
+            <theme.icon className="mr-2 h-4 w-4" />
+            <span>{theme.name}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google'; // Using Inter as a clean sans-serif font
 import './globals.css';
@@ -29,6 +30,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
           storageKey="architech-ai-theme"
+          themes={['light', 'dark', 'system', 'theme-ocean', 'theme-forest']}
         >
           {children}
           <Toaster />
