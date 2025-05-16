@@ -3,7 +3,7 @@
 
 import React, { useState, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import ReactFlow, {
-  ReactFlowProvider,
+  // ReactFlowProvider, // Removed from here
   addEdge,
   useNodesState,
   useEdgesState,
@@ -18,8 +18,8 @@ import ReactFlow, {
   type Viewport,
   MarkerType,
   useOnSelectionChange,
-  NodeChange,
-  EdgeChange,
+  type NodeChange,
+  type EdgeChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -213,7 +213,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
   }));
   
   return (
-    <ReactFlowProvider>
+    // <ReactFlowProvider> // REMOVED from here
       <div className="h-full w-full" ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodes}
@@ -256,7 +256,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           />
         </ReactFlow>
       </div>
-    </ReactFlowProvider>
+    // </ReactFlowProvider> // REMOVED from here
   );
 });
 

@@ -6,6 +6,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { Node, Edge } from 'reactflow';
+import { ReactFlowProvider } from 'reactflow'; // Added import
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -448,22 +449,27 @@ function AppContent() {
             <SidebarTrigger />
             <span className="ml-2 font-semibold text-lg text-primary">Architech AI</span>
         </header>
-        <main className="flex-1 overflow-auto p-0 h-[calc(100vh-3.5rem)] md:h-screen">
-            <DesignCanvas ref={canvasRef} onNodeSelect={handleNodeSelect} />
-        </main>
-        {selectedNode && selectedComponentConfig && (
-          <aside className="w-80 border-l border-border bg-card hidden md:block">
-            <ScrollArea className="h-full">
-              <PropertiesPanel
-                key={selectedNode.id} // Force re-mount on node change to reset form
-                selectedNode={selectedNode}
-                componentConfig={selectedComponentConfig}
-                onUpdateNode={handleUpdateNodeProperties}
-                onClose={() => setSelectedNode(null)}
-              />
-            </ScrollArea>
-          </aside>
-        )}
+        {/* Wrap the main canvas and properties panel area with ReactFlowProvider */}
+        <ReactFlowProvider>
+          <div className="flex flex-1"> {/* This div helps maintain flex layout for main and aside */}
+            <main className="flex-1 overflow-auto p-0 h-[calc(100vh-3.5rem)] md:h-screen">
+                <DesignCanvas ref={canvasRef} onNodeSelect={handleNodeSelect} />
+            </main>
+            {selectedNode && selectedComponentConfig && (
+              <aside className="w-80 border-l border-border bg-card hidden md:block">
+                <ScrollArea className="h-full">
+                  <PropertiesPanel
+                    key={selectedNode.id} // Force re-mount on node change to reset form
+                    selectedNode={selectedNode}
+                    componentConfig={selectedComponentConfig}
+                    onUpdateNode={handleUpdateNodeProperties}
+                    onClose={() => setSelectedNode(null)}
+                  />
+                </ScrollArea>
+              </aside>
+            )}
+          </div>
+        </ReactFlowProvider>
       </SidebarInset>
     </>
   );
