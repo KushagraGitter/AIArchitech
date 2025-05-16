@@ -15,7 +15,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe } from 'lucide-react';
+import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, Calculator } from 'lucide-react';
 
 import {
   Sidebar,
@@ -44,6 +44,7 @@ import { ThemeToggleButton } from './theme-toggle-button';
 
 const formSchema = z.object({
   featureRequirements: z.string().min(20, { message: "Feature requirements should be descriptive, at least 20 characters." }),
+  backOfTheEnvelopeCalculations: z.string().optional(),
 });
 type FormValues = z.infer<typeof formSchema>;
 
@@ -204,7 +205,7 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
       { id: 'chat_usersvc_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'User Service', iconName: 'Users', properties: designComponents.find(c => c.name === "User Service")?.initialProperties || {} } },
       { id: 'chat_chatsvc_1', type: 'custom', position: { x: 450, y: 200 }, data: { label: 'Chat Service', iconName: 'MessageSquare', properties: designComponents.find(c => c.name === "Chat Service")?.initialProperties || {} } },
       { id: 'chat_ws_lb_1', type: 'custom', position: { x: 250, y: 350 }, data: { label: 'Load Balancer (WS)', iconName: 'Shuffle', properties: {...(designComponents.find(c => c.name === "Load Balancer")?.initialProperties || {}), type: "Network LB"} } },
-      { id: 'chat_ws_server_1', type: 'custom', position: { x: 450, y: 350 }, data: { label: 'WebSocket Server', iconName: 'ServerCog', properties: {protocol: "WSS", framework: "Socket.IO/SignalR", connections: "1M+"} } },
+      { id: 'chat_ws_server_1', type: 'custom', position: { x: 450, y: 350 }, data: { label: 'WebSocket Server', iconName: 'ServerCog', properties: {protocol: "WSS", framework: "Socket.IO/SignalR", connections: "1M+"} } }, // Assuming ServerCog can represent this, or use Server
       { id: 'chat_msgdb_1', type: 'custom', position: { x: 650, y: 200 }, data: { label: 'Message Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Cassandra", consistency: "Eventual (for messages)", purpose: "Stores chat messages, read-heavy for history"} } },
       { id: 'chat_userdb_1', type: 'custom', position: { x: 650, y: -50 }, data: { label: 'User Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "PostgreSQL", role: "primary", purpose: "User accounts, profiles, contacts"} } },
       { id: 'chat_cache_1', type: 'custom', position: { x: 650, y: 350 }, data: { label: 'Presence Cache', iconName: 'Zap', properties: {...(designComponents.find(c => c.name === "Cache")?.initialProperties || {}), type: "Redis", use: "User presence, Session data, Typing indicators"} } },
@@ -289,6 +290,7 @@ function AppContent() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       featureRequirements: "",
+      backOfTheEnvelopeCalculations: "",
     },
   });
 
@@ -347,6 +349,7 @@ function AppContent() {
       const evaluationInput: EvaluateSystemDesignInput = {
         requirements: data.featureRequirements,
         designDiagram: designDiagramJson,
+        backOfTheEnvelopeCalculations: data.backOfTheEnvelopeCalculations,
       };
 
       const feedback = await evaluateSystemDesign(evaluationInput);
@@ -377,87 +380,124 @@ function AppContent() {
         </SidebarHeader>
         <ShadSidebarContent className="p-0">
           <ScrollArea className="h-full">
-            <Accordion type="multiple" defaultValue={["components-accordion"]} className="w-full">
-              <AccordionItem value="components-accordion" className="border-none">
-                <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
-                  <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
-                    <Box className="h-4 w-4" /> Components
-                  </SidebarGroupLabel>
-                </AccordionTrigger>
-                <AccordionContent className="pt-1 pb-0">
-                  <SidebarGroup className="p-2 pt-0">
-                    <SidebarMenu>
-                      {designComponents.map((component) => (
-                        <SidebarMenuItem key={component.name}>
-                          <SidebarMenuButton
-                            draggable={true}
-                            onDragStart={(event) => onDragStart(event, component.name, component.iconName, component.initialProperties)}
-                            className="text-sm cursor-grab"
-                            tooltip={component.name}
-                          >
-                            <component.icon className="h-4 w-4" />
-                            <span>{component.name}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroup>
-                </AccordionContent>
-              </AccordionItem>
-              
-              <AccordionItem value="templates-accordion" className="border-none">
-                 <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
-                  <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
-                    <Layers className="h-4 w-4" /> Templates
-                  </SidebarGroupLabel>
-                </AccordionTrigger>
-                <AccordionContent className="pt-1 pb-0">
-                  <SidebarGroup className="p-2 pt-0">
-                    <SidebarMenu>
-                      {initialTemplates.map((template) => (
-                        <SidebarMenuItem key={template.name}>
-                          <SidebarMenuButton
-                            onClick={() => loadTemplate(template.nodes, template.edges)}
-                            className="text-sm"
-                            tooltip={`Load ${template.name} template`}
-                          >
-                            <Layers className="h-4 w-4" />
-                            <span>{template.name}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroup>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-            
-            <Separator className="my-2" />
-
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0"> {/* Reduced space */}
+                <Accordion type="multiple" defaultValue={["components-accordion", "requirements-accordion"]} className="w-full">
+                  <AccordionItem value="components-accordion" className="border-none">
+                    <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
+                      <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
+                        <Box className="h-4 w-4" /> Components
+                      </SidebarGroupLabel>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pb-0">
+                      <SidebarGroup className="p-2 pt-0">
+                        <SidebarMenu>
+                          {designComponents.map((component) => (
+                            <SidebarMenuItem key={component.name}>
+                              <SidebarMenuButton
+                                draggable={true}
+                                onDragStart={(event) => onDragStart(event, component.name, component.iconName, component.initialProperties)}
+                                className="text-sm cursor-grab"
+                                tooltip={component.name}
+                              >
+                                <component.icon className="h-4 w-4" />
+                                <span>{component.name}</span>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          ))}
+                        </SidebarMenu>
+                      </SidebarGroup>
+                    </AccordionContent>
+                  </AccordionItem>
+                  
+                  <AccordionItem value="templates-accordion" className="border-none">
+                    <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
+                      <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
+                        <Layers className="h-4 w-4" /> Templates
+                      </SidebarGroupLabel>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pb-0">
+                      <SidebarGroup className="p-2 pt-0">
+                        <SidebarMenu>
+                          {initialTemplates.map((template) => (
+                            <SidebarMenuItem key={template.name}>
+                              <SidebarMenuButton
+                                onClick={() => loadTemplate(template.nodes, template.edges)}
+                                className="text-sm"
+                                tooltip={`Load ${template.name} template`}
+                              >
+                                <Layers className="h-4 w-4" /> {/* Consistent icon */}
+                                <span>{template.name}</span>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          ))}
+                        </SidebarMenu>
+                      </SidebarGroup>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="requirements-accordion" className="border-none">
+                    <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
+                      <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
+                        <Sparkles className="h-4 w-4" /> Feature Requirements
+                      </SidebarGroupLabel>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pb-0">
+                      <SidebarGroup className="p-2 pt-0">
+                        <FormField
+                          control={form.control}
+                          name="featureRequirements"
+                          render={({ field }) => (
+                            <FormItem className="px-2 py-2"> {/* Added py-2 */}
+                              <FormLabel className="sr-only">Feature Requirements</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="e.g., Build a YouTube-like video streaming platform..."
+                                  className="min-h-[100px] text-sm bg-input"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </SidebarGroup>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="calculations-accordion" className="border-none">
+                    <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
+                      <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
+                        <Calculator className="h-4 w-4" /> BOTE & Notes
+                      </SidebarGroupLabel>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pb-0">
+                      <SidebarGroup className="p-2 pt-0">
+                        <FormField
+                          control={form.control}
+                          name="backOfTheEnvelopeCalculations"
+                          render={({ field }) => (
+                            <FormItem className="px-2 py-2"> {/* Added py-2 */}
+                              <FormLabel className="sr-only">Back of the Envelope Calculations & Notes</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="e.g., QPS: 10k, Storage: 1TB/day, DAU: 1M..."
+                                  className="min-h-[100px] text-sm bg-input"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </SidebarGroup>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+            
+                <Separator className="my-2" />
                 <SidebarGroup className="p-2">
-                  <SidebarGroupLabel className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4" /> Feature Requirements
-                  </SidebarGroupLabel>
-                  <FormField
-                    control={form.control}
-                    name="featureRequirements"
-                    render={({ field }) => (
-                      <FormItem className="px-2">
-                        <FormLabel className="sr-only">Feature Requirements</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="e.g., Build a YouTube-like video streaming platform for millions of users..."
-                            className="min-h-[120px] text-sm bg-input"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <div className="px-2 mt-2">
+                  <div className="px-2 mt-2">
                     <Button type="submit" className="w-full" disabled={isLoading}>
                       {isLoading ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -497,7 +537,7 @@ function AppContent() {
                 </Card>
                 <Card className="shadow-none bg-card mt-2">
                   <CardContent className="p-0">
-                    <Accordion type="multiple" className="w-full">
+                    <Accordion type="multiple" className="w-full" defaultValue={["strengths"]}>
                        <AccordionItem value="strengths">
                         <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">Identified Strengths</AccordionTrigger>
                         <AccordionContent className="px-4 pb-3 text-sm text-muted-foreground">
@@ -545,6 +585,14 @@ function AppContent() {
                           </AccordionContent>
                         </AccordionItem>
                       ))}
+                      {aiFeedback.calculationReview && (
+                        <AccordionItem value="calculationReview">
+                          <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">Calculation Review</AccordionTrigger>
+                          <AccordionContent className="px-4 pb-3 text-sm text-muted-foreground">
+                            <p>{aiFeedback.calculationReview}</p>
+                          </AccordionContent>
+                        </AccordionItem>
+                      )}
                        <AccordionItem value="risks">
                         <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">Potential Risks</AccordionTrigger>
                         <AccordionContent className="px-4 pb-3 text-sm text-muted-foreground">
@@ -621,7 +669,6 @@ export function ArchitechApp() {
   }, []);
 
   if (!isClient) {
-    // Optional: render a loading skeleton or minimal UI for SSR/SSG
     return (
         <div className="flex h-screen items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -635,6 +682,3 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
-
-
-    
