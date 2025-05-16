@@ -19,11 +19,21 @@ import ReactFlow, {
   useOnSelectionChange,
   type NodeChange,
   type EdgeChange,
-  ReactFlowProvider, // Ensure ReactFlowProvider is imported
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 import { CustomNode } from './custom-node';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 export interface NodeData {
   label: string;
@@ -52,6 +62,10 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
   const [nodes, setNodes, onNodesChangeInternal] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChangeInternal] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+
+  const [isEdgeDialogVisible, setIsEdgeDialogVisible] = useState(false);
+  const [currentEditingEdgeId, setCurrentEditingEdgeId] = useState<string | null>(null);
+  const [edgeLabelInput, setEdgeLabelInput] = useState('');
 
   const nodeTypes = useMemo(() => ({ custom: CustomNode }), []);
 
@@ -143,17 +157,25 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
   
   const onEdgeDoubleClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
-      const newLabel = prompt("Enter label for this connection:", edge.label as string || "");
-      if (newLabel !== null) {
-        setEdges((eds) =>
-          eds.map((ed) =>
-            ed.id === edge.id ? { ...ed, label: newLabel, labelStyle: { fill: 'hsl(var(--foreground))', fontWeight: 500 }, labelBgStyle: { fill: 'hsl(var(--background))', fillOpacity: 0.7 }, labelBgPadding: [4,2] } : ed
-          )
-        );
-      }
+      setCurrentEditingEdgeId(edge.id);
+      setEdgeLabelInput(edge.label as string || '');
+      setIsEdgeDialogVisible(true);
     },
     [setEdges]
   );
+
+  const handleSaveEdgeLabel = () => {
+    if (currentEditingEdgeId) {
+      setEdges((eds) =>
+        eds.map((ed) =>
+          ed.id === currentEditingEdgeId ? { ...ed, label: edgeLabelInput, labelStyle: { fill: 'hsl(var(--foreground))', fontWeight: 500 }, labelBgStyle: { fill: 'hsl(var(--background))', fillOpacity: 0.7 }, labelBgPadding: [4,2] } : ed
+        )
+      );
+    }
+    setIsEdgeDialogVisible(false);
+    setCurrentEditingEdgeId(null);
+    setEdgeLabelInput('');
+  };
 
 
   useImperativeHandle(ref, () => ({
@@ -225,11 +247,10 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           nodeTypes={nodeTypes}
           fitView
           className="bg-background shadow-inner"
-          defaultEdgeOptions={{ // Default styles for edges
+          defaultEdgeOptions={{ 
             animated: true,
             style: { strokeWidth: 2, stroke: 'hsl(var(--accent))' },
             markerEnd: { type: MarkerType.ArrowClosed, color: 'hsl(var(--accent))' },
-            // Removed labelStyle, labelBgStyle, labelBgPadding from here
           }}
           selectNodesOnDrag={false}
           multiSelectionKeyCode={null} 
@@ -250,8 +271,46 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
             className="!bg-card border border-border rounded-md shadow-lg"
           />
         </ReactFlow>
+
+        {isEdgeDialogVisible && (
+          <Dialog open={isEdgeDialogVisible} onOpenChange={(isOpen) => {
+            setIsEdgeDialogVisible(isOpen);
+            if (!isOpen) {
+              setCurrentEditingEdgeId(null);
+              setEdgeLabelInput('');
+            }
+          }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Connection Label</DialogTitle>
+              </DialogHeader>
+              <div className="py-4">
+                <Label htmlFor="edgeLabelInput" className="sr-only">
+                  Connection Label
+                </Label>
+                <Input
+                  id="edgeLabelInput"
+                  value={edgeLabelInput}
+                  onChange={(e) => setEdgeLabelInput(e.target.value)}
+                  placeholder="Enter label (e.g., API Call, Data Sync)"
+                />
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="outline">
+                    Cancel
+                  </Button>
+                </DialogClose>
+                <Button type="button" onClick={handleSaveEdgeLabel}>
+                  Save Label
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
   );
 });
 
 DesignCanvas.displayName = 'DesignCanvas';
+
