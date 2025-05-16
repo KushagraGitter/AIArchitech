@@ -39,6 +39,8 @@ import { PropertiesPanel, type ComponentConfig } from '@/components/properties-p
 import type { EvaluateSystemDesignInput, EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 import { evaluateSystemDesign } from '@/ai/flows/evaluate-system-design';
 import { Separator } from './ui/separator';
+import { ThemeToggleButton } from './theme-toggle-button';
+
 
 const formSchema = z.object({
   featureRequirements: z.string().min(20, { message: "Feature requirements should be descriptive, at least 20 characters." }),
@@ -50,44 +52,50 @@ export const designComponents: ComponentConfig[] = [
     name: "Load Balancer",
     icon: Shuffle,
     iconName: "Shuffle",
-    initialProperties: { type: "Application LB", algorithm: "Round Robin" },
+    initialProperties: { type: "Application LB", algorithm: "Round Robin", instanceCount: 2, healthCheckPath: "/health" },
     configurableProperties: [
-      { id: 'type', label: 'LB Type', type: 'text' },
+      { id: 'type', label: 'LB Type', type: 'select', options: ["Application LB", "Network LB", "Gateway LB"] },
       { id: 'algorithm', label: 'Algorithm', type: 'select', options: ["Round Robin", "Least Connections", "IP Hash", "Weighted Round Robin"] },
+      { id: 'instanceCount', label: 'Instance Count', type: 'number' },
+      { id: 'healthCheckPath', label: 'Health Check Path', type: 'text' },
     ]
   },
   {
     name: "API Gateway",
     icon: Waypoints,
     iconName: "Waypoints",
-    initialProperties: { protocol: "HTTPS/REST", authType: "API Key", rateLimit: "1000/s" },
+    initialProperties: { protocol: "HTTPS/REST", authType: "API Key", rateLimit: "1000/s", corsEnabled: true },
     configurableProperties: [
       { id: 'protocol', label: 'Protocol', type: 'text' },
-      { id: 'authType', label: 'Auth Type', type: 'text' },
-      { id: 'rateLimit', label: 'Rate Limit', type: 'text' },
+      { id: 'authType', label: 'Auth Type', type: 'select', options: ["API Key", "OAuth 2.0", "JWT", "None"] },
+      { id: 'rateLimit', label: 'Rate Limit (req/s)', type: 'text' },
+      { id: 'corsEnabled', label: 'CORS Enabled', type: 'boolean' },
     ]
   },
   {
     name: "Web Server",
     icon: Server,
     iconName: "Server",
-    initialProperties: { instanceType: "t3.medium", scaling: "auto", framework: "Nginx/Apache" },
+    initialProperties: { instanceType: "t3.medium", scaling: "auto", framework: "Nginx", port: 80 },
     configurableProperties: [
       { id: 'instanceType', label: 'Instance Type', type: 'text' },
-      { id: 'scaling', label: 'Scaling', type: 'text' },
-      { id: 'framework', label: 'Framework', type: 'text' },
+      { id: 'scaling', label: 'Scaling', type: 'select', options: ["auto", "fixed", "manual"] },
+      { id: 'framework', label: 'Framework', type: 'select', options: ["Nginx", "Apache", "IIS", "Caddy", "Other"] },
+      { id: 'port', label: 'Port', type: 'number' },
     ]
   },
   {
     name: "App Server",
     icon: Puzzle,
     iconName: "Puzzle",
-    initialProperties: { language: "Node.js", framework: "Express", instanceType: "m5.large", scaling: "auto-scaling group" },
+    initialProperties: { language: "Node.js", framework: "Express", instanceType: "m5.large", scaling: "auto-scaling group", minInstances: 2, maxInstances: 10 },
     configurableProperties: [
-      { id: 'language', label: 'Language', type: 'text' },
+      { id: 'language', label: 'Language', type: 'select', options: ["Node.js", "Python", "Java", "Go", "Ruby", ".NET", "PHP"] },
       { id: 'framework', label: 'Framework', type: 'text' },
       { id: 'instanceType', label: 'Instance Type', type: 'text' },
       { id: 'scaling', label: 'Scaling Mechanism', type: 'text' },
+      { id: 'minInstances', label: 'Min Instances', type: 'number'},
+      { id: 'maxInstances', label: 'Max Instances', type: 'number'},
     ]
   },
   {
@@ -102,51 +110,57 @@ export const designComponents: ComponentConfig[] = [
       replicationSourceId: "",
       shardingStrategy: "none",
       shardKey: "",
-      consistency: "Strong (for primary)"
+      consistency: "Strong (for primary)",
+      backupEnabled: true,
     },
     configurableProperties: [
-      { id: 'type', label: 'DB Type', type: 'select', options: ["PostgreSQL", "MySQL", "MongoDB", "Cassandra", "DynamoDB", "SQL Server", "Oracle", "Redis (as DB)"] },
+      { id: 'type', label: 'DB Type', type: 'select', options: ["PostgreSQL", "MySQL", "MongoDB", "Cassandra", "DynamoDB", "SQL Server", "Oracle", "Redis (as DB)", "Spanner-like", "Other"] },
       { id: 'size', label: 'Instance Size', type: 'text' },
-      { id: 'role', label: 'Role', type: 'select', options: ["primary", "replica-read", "replica-failover", "standalone"] },
+      { id: 'role', label: 'Role', type: 'select', options: ["primary", "replica-read", "replica-failover", "standalone", "shard-primary", "shard-replica"] },
       { id: 'replicationType', label: 'Replication (if replica)', type: 'select', options: ["async", "sync", "semi-sync", "N/A"] },
       { id: 'replicationSourceId', label: 'Replication Source Node ID', type: 'text' },
-      { id: 'shardingStrategy', label: 'Sharding Strategy', type: 'select', options: ["none", "range-based", "hash-based", "directory-based"] },
+      { id: 'shardingStrategy', label: 'Sharding Strategy', type: 'select', options: ["none", "range-based", "hash-based", "directory-based", "geo-based"] },
       { id: 'shardKey', label: 'Shard Key (if sharded)', type: 'text' },
       { id: 'consistency', label: 'Consistency Model', type: 'text' },
+      { id: 'backupEnabled', label: 'Backups Enabled', type: 'boolean' },
     ]
   },
   {
     name: "Cache",
     icon: Zap,
     iconName: "Zap",
-    initialProperties: { type: "Redis", evictionPolicy: "LRU", pattern: "Cache-Aside" },
+    initialProperties: { type: "Redis", evictionPolicy: "LRU", pattern: "Cache-Aside", size: "cache.m5.large", persistence: "RDB snapshot" },
     configurableProperties: [
-      { id: 'type', label: 'Cache Type', type: 'select', options: ["Redis", "Memcached", "Hazelcast", "In-Memory"] },
-      { id: 'evictionPolicy', label: 'Eviction Policy', type: 'text' },
-      { id: 'pattern', label: 'Caching Pattern', type: 'text' },
+      { id: 'type', label: 'Cache Type', type: 'select', options: ["Redis", "Memcached", "Hazelcast", "In-Memory", "CDN as Cache"] },
+      { id: 'evictionPolicy', label: 'Eviction Policy', type: 'select', options: ["LRU", "LFU", "FIFO", "Random", "No Eviction"] },
+      { id: 'pattern', label: 'Caching Pattern', type: 'select', options: ["Cache-Aside", "Read-Through", "Write-Through", "Write-Back", "Write-Around"] },
+      { id: 'size', label: 'Instance Size', type: 'text' },
+      { id: 'persistence', label: 'Persistence (if applicable)', type: 'text' },
     ]
   },
   {
     name: "Message Queue",
     icon: GitFork,
     iconName: "GitFork",
-    initialProperties: { type: "RabbitMQ", persistence: "durable", deliveryGuarantee: "at-least-once" },
+    initialProperties: { type: "RabbitMQ", persistence: "durable", deliveryGuarantee: "at-least-once", consumerGroups: 1, deadLetterQueue: "enabled" },
     configurableProperties: [
-      { id: 'type', label: 'Queue Type', type: 'select', options: ["RabbitMQ", "Kafka", "SQS", "Redis Streams", "NATS"] },
-      { id: 'persistence', label: 'Persistence', type: 'text' },
-      { id: 'deliveryGuarantee', label: 'Delivery Guarantee', type: 'text' },
+      { id: 'type', label: 'Queue Type', type: 'select', options: ["RabbitMQ", "Kafka", "SQS", "Redis Streams", "NATS", "Google Pub/Sub", "Azure Service Bus"] },
+      { id: 'persistence', label: 'Persistence', type: 'select', options: ["durable", "transient", "configurable"] },
+      { id: 'deliveryGuarantee', label: 'Delivery Guarantee', type: 'select', options: ["at-least-once", "at-most-once", "exactly-once (if supported)"] },
+      { id: 'consumerGroups', label: 'Consumer Groups', type: 'number' },
+      { id: 'deadLetterQueue', label: 'Dead Letter Queue', type: 'select', options: ["enabled", "disabled"] },
     ]
   },
-  { name: "CDN", icon: Cloud, iconName: "Cloud", initialProperties: { provider: "Cloudflare", edgeLocations: "global" }, configurableProperties: [{ id: 'provider', label: 'Provider', type: 'text' }, { id: 'edgeLocations', label: 'Edge Locations', type: 'text' }] },
-  { name: "Firewall", icon: ShieldCheck, iconName: "ShieldCheck", initialProperties: { type: "WAF", ruleset: "OWASP Top 10" }, configurableProperties: [{ id: 'type', label: 'Type', type: 'text' }, { id: 'ruleset', label: 'Ruleset', type: 'text' }] },
-  { name: "Storage (S3/Blob)", icon: Box, iconName: "Box", initialProperties: { bucketType: "Standard", region: "us-east-1" }, configurableProperties: [{ id: 'bucketType', label: 'Bucket Type', type: 'text' }, { id: 'region', label: 'Region', type: 'text' }] },
-  { name: "Monitoring", icon: BarChartBig, iconName: "BarChartBig", initialProperties: { tool: "Prometheus/Grafana", metrics: "Latency, Error Rate, Traffic" }, configurableProperties: [{ id: 'tool', label: 'Tool', type: 'text' }, { id: 'metrics', label: 'Key Metrics', type: 'text' }] },
-  { name: "User Service", icon: Users, iconName: "Users", initialProperties: { language: "Go", responsibilities: "User accounts, auth, profiles", dbUsed: "User DB (Postgres)" }, configurableProperties: [{ id: 'language', label: 'Language', type: 'text' }, { id: 'responsibilities', label: 'Responsibilities', type: 'text' }, { id: 'dbUsed', label: 'Primary Database', type: 'text' }] },
-  { name: "Chat Service", icon: MessageSquare, iconName: "MessageSquare", initialProperties: { language: "Java/Kotlin", features: "Message delivery, history, presence", transport: "WebSockets" }, configurableProperties: [{ id: 'language', label: 'Language', type: 'text' }, { id: 'features', label: 'Features', type: 'text' }, {id: 'transport', label: 'Transport Protocol', type: 'text'}] },
-  { name: "URL Shortener Service", icon: Link2, iconName: "Link2", initialProperties: { language: "Python", db: "Key-Value Store (e.g. Redis)", algorithm: "Base62 Encoding" }, configurableProperties: [{ id: 'language', label: 'Language', type: 'text' }, { id: 'db', label: 'Primary DB', type: 'text' }, {id: 'algorithm', label: 'Shortening Algorithm', type: 'text'}] },
-  { name: "DB Router/Coordinator", icon: ServerCog, iconName: "ServerCog", initialProperties: { type: "ProxySQL/Vitess", strategy: "Sharding Coordination" }, configurableProperties: [{ id: 'type', label: 'Router Type', type: 'text' }, { id: 'strategy', label: 'Strategy', type: 'text' }] },
-  { name: "Client Device", icon: Smartphone, iconName: "Smartphone", initialProperties: { type: "Mobile/Web Browser", platform: "iOS/Android/Web" }, configurableProperties: [{ id: 'type', label: 'Client Type', type: 'text' }, { id: 'platform', label: 'Platform', type: 'text' }] },
-  { name: "External API", icon: Globe, iconName: "Globe", initialProperties: { serviceName: "Payment Gateway", purpose: "Processes payments" }, configurableProperties: [{ id: 'serviceName', label: 'Service Name', type: 'text' }, {id: 'purpose', label: 'Purpose', type: 'text'}] },
+  { name: "CDN", icon: Cloud, iconName: "Cloud", initialProperties: { provider: "Cloudflare", edgeLocations: "global", cachingPolicy: "Standard", WAFEnabled: true }, configurableProperties: [{ id: 'provider', label: 'Provider', type: 'text' }, { id: 'edgeLocations', label: 'Edge Locations', type: 'text' }, { id: 'cachingPolicy', label: 'Caching Policy', type: 'text' }, { id: 'WAFEnabled', label: 'WAF Enabled', type: 'boolean' }] },
+  { name: "Firewall", icon: ShieldCheck, iconName: "ShieldCheck", initialProperties: { type: "WAF", ruleset: "OWASP Top 10", deployment: "Edge", logging: "enabled" }, configurableProperties: [{ id: 'type', label: 'Type', type: 'select', options: ["WAF", "Network Firewall", "NGFW"] }, { id: 'ruleset', label: 'Ruleset', type: 'text' }, {id: 'deployment', label: 'Deployment Location', type: 'text'}, {id: 'logging', label: 'Logging', type: 'select', options: ["enabled", "disabled"]}] },
+  { name: "Storage (S3/Blob)", icon: Box, iconName: "Box", initialProperties: { bucketType: "Standard", region: "us-east-1", versioning: "enabled", lifecyclePolicy: "Archive after 90d" }, configurableProperties: [{ id: 'bucketType', label: 'Bucket Type', type: 'text' }, { id: 'region', label: 'Region', type: 'text' }, {id: 'versioning', label: 'Versioning', type: 'boolean'}, {id: 'lifecyclePolicy', label: 'Lifecycle Policy', type: 'text'}] },
+  { name: "Monitoring", icon: BarChartBig, iconName: "BarChartBig", initialProperties: { tool: "Prometheus/Grafana", metrics: "Latency, Error Rate, Traffic, Saturation", alerting: "PagerDuty", dashboarding: "Grafana" }, configurableProperties: [{ id: 'tool', label: 'Tool', type: 'text' }, { id: 'metrics', label: 'Key Metrics Monitored', type: 'text' }, {id: 'alerting', label: 'Alerting System', type: 'text'}, {id: 'dashboarding', label: 'Dashboarding Tool', type: 'text'}] },
+  { name: "User Service", icon: Users, iconName: "Users", initialProperties: { language: "Go", responsibilities: "User accounts, auth, profiles", dbUsed: "User DB (Postgres)", apiType: "REST/gRPC" }, configurableProperties: [{ id: 'language', label: 'Language', type: 'text' }, { id: 'responsibilities', label: 'Responsibilities', type: 'text' }, { id: 'dbUsed', label: 'Primary Database', type: 'text' }, { id: 'apiType', label: 'API Type', type: 'text'}] },
+  { name: "Chat Service", icon: MessageSquare, iconName: "MessageSquare", initialProperties: { language: "Java/Kotlin", features: "Message delivery, history, presence, typing indicators", transport: "WebSockets", scalability: "Horizontally scalable" }, configurableProperties: [{ id: 'language', label: 'Language', type: 'text' }, { id: 'features', label: 'Features', type: 'text' }, {id: 'transport', label: 'Transport Protocol', type: 'text'}, {id: 'scalability', label: 'Scalability Notes', type: 'text'}] },
+  { name: "URL Shortener Service", icon: Link2, iconName: "Link2", initialProperties: { language: "Python", db: "Key-Value Store (e.g. Redis)", algorithm: "Base62 Encoding + Collision Resolution", readHeavy: true }, configurableProperties: [{ id: 'language', label: 'Language', type: 'text' }, { id: 'db', label: 'Primary DB', type: 'text' }, {id: 'algorithm', label: 'Shortening Algorithm', type: 'text'}, {id: 'readHeavy', label: 'Read Heavy Workload', type: 'boolean'}] },
+  { name: "DB Router/Coordinator", icon: ServerCog, iconName: "ServerCog", initialProperties: { type: "ProxySQL/Vitess", strategy: "Sharding Coordination", connectionPooling: "enabled", queryCaching: "disabled" }, configurableProperties: [{ id: 'type', label: 'Router Type', type: 'text' }, { id: 'strategy', label: 'Strategy', type: 'text' }, {id: 'connectionPooling', label: 'Connection Pooling', type: 'boolean'}, {id: 'queryCaching', label: 'Query Caching', type: 'boolean'}] },
+  { name: "Client Device", icon: Smartphone, iconName: "Smartphone", initialProperties: { type: "Mobile/Web Browser", platform: "iOS/Android/Web", connectionType: "WiFi/Cellular" }, configurableProperties: [{ id: 'type', label: 'Client Type', type: 'text' }, { id: 'platform', label: 'Platform', type: 'text' }, {id: 'connectionType', label: 'Connection Type', type: 'text'}] },
+  { name: "External API", icon: Globe, iconName: "Globe", initialProperties: { serviceName: "Payment Gateway", purpose: "Processes payments", integration: "Webhook/SDK", reliability: "High (SLA based)" }, configurableProperties: [{ id: 'serviceName', label: 'Service Name', type: 'text' }, {id: 'purpose', label: 'Purpose', type: 'text'}, {id: 'integration', label: 'Integration Method', type: 'text'}, {id: 'reliability', label: 'Reliability Notes', type: 'text'}] },
 ];
 
 const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }[] = [
@@ -190,10 +204,10 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
       { id: 'chat_usersvc_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'User Service', iconName: 'Users', properties: designComponents.find(c => c.name === "User Service")?.initialProperties || {} } },
       { id: 'chat_chatsvc_1', type: 'custom', position: { x: 450, y: 200 }, data: { label: 'Chat Service', iconName: 'MessageSquare', properties: designComponents.find(c => c.name === "Chat Service")?.initialProperties || {} } },
       { id: 'chat_ws_lb_1', type: 'custom', position: { x: 250, y: 350 }, data: { label: 'Load Balancer (WS)', iconName: 'Shuffle', properties: {...(designComponents.find(c => c.name === "Load Balancer")?.initialProperties || {}), type: "Network LB"} } },
-      { id: 'chat_ws_server_1', type: 'custom', position: { x: 450, y: 350 }, data: { label: 'WebSocket Server', iconName: 'ServerCog', properties: {protocol: "WSS", framework: "Socket.IO/SignalR"} } },
-      { id: 'chat_msgdb_1', type: 'custom', position: { x: 650, y: 200 }, data: { label: 'Message Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Cassandra", consistency: "Eventual (for messages)"} } },
-      { id: 'chat_userdb_1', type: 'custom', position: { x: 650, y: -50 }, data: { label: 'User Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "PostgreSQL", role: "primary"} } },
-      { id: 'chat_cache_1', type: 'custom', position: { x: 650, y: 350 }, data: { label: 'Presence Cache', iconName: 'Zap', properties: {...(designComponents.find(c => c.name === "Cache")?.initialProperties || {}), type: "Redis", use: "User presence, Session data"} } },
+      { id: 'chat_ws_server_1', type: 'custom', position: { x: 450, y: 350 }, data: { label: 'WebSocket Server', iconName: 'ServerCog', properties: {protocol: "WSS", framework: "Socket.IO/SignalR", connections: "1M+"} } },
+      { id: 'chat_msgdb_1', type: 'custom', position: { x: 650, y: 200 }, data: { label: 'Message Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Cassandra", consistency: "Eventual (for messages)", purpose: "Stores chat messages, read-heavy for history"} } },
+      { id: 'chat_userdb_1', type: 'custom', position: { x: 650, y: -50 }, data: { label: 'User Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "PostgreSQL", role: "primary", purpose: "User accounts, profiles, contacts"} } },
+      { id: 'chat_cache_1', type: 'custom', position: { x: 650, y: 350 }, data: { label: 'Presence Cache', iconName: 'Zap', properties: {...(designComponents.find(c => c.name === "Cache")?.initialProperties || {}), type: "Redis", use: "User presence, Session data, Typing indicators"} } },
     ],
     edges: [
       { id: 'chat_e_client_lb', source: 'chat_client_1', target: 'chat_lb_1', label: 'HTTP/S API Calls', animated: true, style: { stroke: 'hsl(var(--primary))' } },
@@ -213,10 +227,10 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
     name: "TinyURL Service",
     nodes: [
       { id: 'tiny_client_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'User Browser', iconName: 'Smartphone', properties: designComponents.find(c => c.name === "Client Device")?.initialProperties || {} } },
-      { id: 'tiny_apigw_1', type: 'custom', position: { x: 250, y: 150 }, data: { label: 'API Gateway', iconName: 'Waypoints', properties: designComponents.find(c => c.name === "API Gateway")?.initialProperties || {} } },
+      { id: 'tiny_apigw_1', type: 'custom', position: { x: 250, y: 150 }, data: { label: 'API Gateway', iconName: 'Waypoints', properties: {...(designComponents.find(c => c.name === "API Gateway")?.initialProperties || {}), rateLimit: "High for reads, Moderate for writes"} } },
       { id: 'tiny_urlsvc_1', type: 'custom', position: { x: 450, y: 150 }, data: { label: 'URL Shortener Service', iconName: 'Link2', properties: designComponents.find(c => c.name === "URL Shortener Service")?.initialProperties || {} } },
-      { id: 'tiny_kvdb_1', type: 'custom', position: { x: 650, y: 150 }, data: { label: 'Key-Value Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Redis (as DB)", role: "standalone", consistency: "Eventual (acceptable for counters)"} } },
-      { id: 'tiny_cache_1', type: 'custom', position: { x: 450, y: 300 }, data: { label: 'Hot URL Cache', iconName: 'Zap', properties: {...(designComponents.find(c => c.name === "Cache")?.initialProperties || {}), type: "Redis", use: "Frequently accessed short URLs"} } },
+      { id: 'tiny_kvdb_1', type: 'custom', position: { x: 650, y: 150 }, data: { label: 'Key-Value Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Redis (as DB)", role: "standalone", consistency: "Eventual (acceptable for counters)", purpose: "Stores short_url -> long_url mapping"} } },
+      { id: 'tiny_cache_1', type: 'custom', position: { x: 450, y: 300 }, data: { label: 'Hot URL Cache', iconName: 'Zap', properties: {...(designComponents.find(c => c.name === "Cache")?.initialProperties || {}), type: "Redis", use: "Frequently accessed short URLs", pattern: "Cache-Aside"} } },
     ],
     edges: [
       { id: 'tiny_e_client_apigw', source: 'tiny_client_1', target: 'tiny_apigw_1', label: 'Shorten/Redirect Req', animated: true, style: { stroke: 'hsl(var(--primary))' } },
@@ -231,26 +245,26 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
     nodes: [
       { id: 'shard_app_1', type: 'custom', position: { x: 50, y: 200 }, data: { label: 'App Server', iconName: 'Puzzle', properties: designComponents.find(c => c.name === "App Server")?.initialProperties || {} } },
       { id: 'shard_router_1', type: 'custom', position: { x: 250, y: 200 }, data: { label: 'DB Router/Coordinator', iconName: 'ServerCog', properties: designComponents.find(c => c.name === "DB Router/Coordinator")?.initialProperties || {} } },
-      { id: 'shard_db1_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'DB Shard 1', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: "primary", shardingStrategy: "hash-based", shardKey: "user_id", type: "MySQL", custom: {shard_range: "IDs 0-999"}} } },
-      { id: 'shard_db2_1', type: 'custom', position: { x: 450, y: 200 }, data: { label: 'DB Shard 2', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: "primary", shardingStrategy: "hash-based", shardKey: "user_id", type: "MySQL", custom: {shard_range: "IDs 1000-1999"}} } },
-      { id: 'shard_db3_1', type: 'custom', position: { x: 450, y: 350 }, data: { label: 'DB Shard 3', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: "primary", shardingStrategy: "hash-based", shardKey: "user_id", type: "MySQL", custom: {shard_range: "IDs 2000-2999"}} } },
+      { id: 'shard_db1_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'DB Shard 1', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: "shard-primary", shardingStrategy: "hash-based", shardKey: "user_id", type: "MySQL", custom: {shard_info: "Shard 1 (e.g., UserIDs ending 0-4)"}} } },
+      { id: 'shard_db2_1', type: 'custom', position: { x: 450, y: 200 }, data: { label: 'DB Shard 2', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: "shard-primary", shardingStrategy: "hash-based", shardKey: "user_id", type: "MySQL", custom: {shard_info: "Shard 2 (e.g., UserIDs ending 5-9)"}} } },
+      { id: 'shard_db3_1', type: 'custom', position: { x: 450, y: 350 }, data: { label: 'DB Shard 3 (Replica Example)', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: "shard-replica", shardingStrategy: "hash-based", shardKey: "user_id", type: "MySQL", replicationSourceId: "shard_db1_1", custom: {shard_info: "Replica for Shard 1"}} } },
     ],
     edges: [
       { id: 'shard_e_app_router', source: 'shard_app_1', target: 'shard_router_1', label: 'DB Queries (via shard key)', animated: true, style: { stroke: 'hsl(var(--primary))' } },
       { id: 'shard_e_router_db1', source: 'shard_router_1', target: 'shard_db1_1', label: 'Routes to Shard 1', animated: true, style: { stroke: 'hsl(var(--accent))' } },
       { id: 'shard_e_router_db2', source: 'shard_router_1', target: 'shard_db2_1', label: 'Routes to Shard 2', animated: true, style: { stroke: 'hsl(var(--accent))' } },
-      { id: 'shard_e_router_db3', source: 'shard_router_1', target: 'shard_db3_1', label: 'Routes to Shard 3', animated: true, style: { stroke: 'hsl(var(--accent))' } },
+      { id: 'shard_e_db1_db3_repl', source: 'shard_db1_1', target: 'shard_db3_1', label: 'Replicates to', animated: true, style: { stroke: 'hsl(var(--muted))', strokeDasharray: '5,5' } },
     ],
   },
   {
     name: "Message Queue System",
     nodes: [
-      { id: 'mq_producer_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'Producer Service', iconName: 'Server', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Order Processing"}} } },
+      { id: 'mq_producer_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'Producer Service', iconName: 'Server', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Order Processing", event_type: "OrderCreatedEvent"}} } },
       { id: 'mq_queue_1', type: 'custom', position: { x: 250, y: 150 }, data: { label: 'Message Queue', iconName: 'GitFork', properties: designComponents.find(c => c.name === "Message Queue")?.initialProperties || {} } },
-      { id: 'mq_consumer1_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'Consumer (Notifications)', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Notification Sending"}} } },
-      { id: 'mq_consumer2_1', type: 'custom', position: { x: 450, y: 250 }, data: { label: 'Consumer (Inventory)', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Inventory Update"}} } },
-      { id: 'mq_db_notify_1', type: 'custom', position: { x: 650, y: 50 }, data: { label: 'Notification Log DB', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "MongoDB", use: "Notification Logs"} } },
-      { id: 'mq_db_inventory_1', type: 'custom', position: { x: 650, y: 250 }, data: { label: 'Inventory DB', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "MySQL", use: "Product Inventory"} } },
+      { id: 'mq_consumer1_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'Consumer (Notifications)', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Notification Sending", processing_logic: "Send email/SMS"}} } },
+      { id: 'mq_consumer2_1', type: 'custom', position: { x: 450, y: 250 }, data: { label: 'Consumer (Inventory)', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Inventory Update", processing_logic: "Decrement stock count"}} } },
+      { id: 'mq_db_notify_1', type: 'custom', position: { x: 650, y: 50 }, data: { label: 'Notification Log DB', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "MongoDB", use: "Notification Logs", custom: {access_pattern: "Write-heavy, append-only"}} } },
+      { id: 'mq_db_inventory_1', type: 'custom', position: { x: 650, y: 250 }, data: { label: 'Inventory DB', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "MySQL", use: "Product Inventory", custom: {access_pattern: "Transactional updates"}} } },
     ],
     edges: [
       { id: 'mq_e_producer_queue', source: 'mq_producer_1', target: 'mq_queue_1', label: 'Publishes Message (OrderEvent)', animated: true, style: { stroke: 'hsl(var(--primary))' } },
@@ -537,10 +551,11 @@ function AppContent() {
             )}
           </ScrollArea>
         </ShadSidebarContent>
-        <SidebarFooter className="p-2 border-t border-sidebar-border">
-            <p className="text-xs text-muted-foreground text-center w-full group-data-[collapsible=icon]:hidden">
+        <SidebarFooter className="p-2 border-t border-sidebar-border flex items-center group-data-[collapsible=icon]:justify-center">
+            <span className="text-xs text-muted-foreground flex-grow group-data-[collapsible=icon]:hidden">
               Architech AI &copy; {new Date().getFullYear()}
-            </p>
+            </span>
+            <ThemeToggleButton />
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col"> {/* Changed to flex-col */}
