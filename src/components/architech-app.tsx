@@ -377,49 +377,61 @@ function AppContent() {
         </SidebarHeader>
         <ShadSidebarContent className="p-0">
           <ScrollArea className="h-full">
-            <SidebarGroup className="p-2">
-              <SidebarGroupLabel className="flex items-center gap-2">
-                <Box className="h-4 w-4" /> Components
-              </SidebarGroupLabel>
-              <SidebarMenu>
-                {designComponents.map((component) => (
-                  <SidebarMenuItem key={component.name}>
-                    <SidebarMenuButton
-                      draggable={true}
-                      onDragStart={(event) => onDragStart(event, component.name, component.iconName, component.initialProperties)}
-                      className="text-sm cursor-grab"
-                      tooltip={component.name}
-                    >
-                      <component.icon className="h-4 w-4" />
-                      <span>{component.name}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroup>
+            <Accordion type="multiple" defaultValue={["components-accordion"]} className="w-full">
+              <AccordionItem value="components-accordion" className="border-none">
+                <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
+                  <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
+                    <Box className="h-4 w-4" /> Components
+                  </SidebarGroupLabel>
+                </AccordionTrigger>
+                <AccordionContent className="pt-1 pb-0">
+                  <SidebarGroup className="p-2 pt-0">
+                    <SidebarMenu>
+                      {designComponents.map((component) => (
+                        <SidebarMenuItem key={component.name}>
+                          <SidebarMenuButton
+                            draggable={true}
+                            onDragStart={(event) => onDragStart(event, component.name, component.iconName, component.initialProperties)}
+                            className="text-sm cursor-grab"
+                            tooltip={component.name}
+                          >
+                            <component.icon className="h-4 w-4" />
+                            <span>{component.name}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroup>
+                </AccordionContent>
+              </AccordionItem>
+              
+              <AccordionItem value="templates-accordion" className="border-none">
+                 <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
+                  <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
+                    <Layers className="h-4 w-4" /> Templates
+                  </SidebarGroupLabel>
+                </AccordionTrigger>
+                <AccordionContent className="pt-1 pb-0">
+                  <SidebarGroup className="p-2 pt-0">
+                    <SidebarMenu>
+                      {initialTemplates.map((template) => (
+                        <SidebarMenuItem key={template.name}>
+                          <SidebarMenuButton
+                            onClick={() => loadTemplate(template.nodes, template.edges)}
+                            className="text-sm"
+                            tooltip={`Load ${template.name} template`}
+                          >
+                            <Layers className="h-4 w-4" />
+                            <span>{template.name}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroup>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
             
-            <Separator className="my-2" />
-
-            <SidebarGroup className="p-2">
-               <SidebarGroupLabel className="flex items-center gap-2">
-                <Layers className="h-4 w-4" /> Templates
-              </SidebarGroupLabel>
-              <SidebarMenu>
-                {initialTemplates.map((template) => (
-                  <SidebarMenuItem key={template.name}>
-                    <SidebarMenuButton
-                      onClick={() => loadTemplate(template.nodes, template.edges)}
-                      className="text-sm"
-                      tooltip={`Load ${template.name} template`}
-                    >
-                      <Layers className="h-4 w-4" /> {/* Consistent icon for template items */}
-                      <span>{template.name}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroup>
-
             <Separator className="my-2" />
 
             <Form {...form}>
@@ -623,3 +635,6 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
+
+
+    
