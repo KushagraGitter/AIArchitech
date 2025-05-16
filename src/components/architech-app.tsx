@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,8 +32,7 @@ import {
 } from '@/components/ui/sidebar';
 
 import { Logo } from '@/components/logo';
-import { DesignCanvas } from '@/components/design-canvas';
-
+import { DesignCanvas, type DesignCanvasHandles } from '@/components/design-canvas'; // Updated import
 import type { EvaluateSystemDesignInput, EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 import { evaluateSystemDesign } from '@/ai/flows/evaluate-system-design';
 import { Separator } from './ui/separator';
@@ -43,24 +43,25 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const designComponents = [
-  { name: "Load Balancer", icon: Shuffle },
-  { name: "API Gateway", icon: Waypoints },
-  { name: "Web Server", icon: Server },
-  { name: "App Server", icon: Puzzle },
-  { name: "Database", icon: Database },
-  { name: "Cache", icon: Zap },
-  { name: "Message Queue", icon: GitFork },
-  { name: "CDN", icon: Cloud },
-  { name: "Firewall", icon: ShieldCheck },
-  { name: "Storage (S3)", icon: Box },
-  { name: "Monitoring", icon: BarChartBig },
+  { name: "Load Balancer", icon: Shuffle, iconName: "Shuffle" },
+  { name: "API Gateway", icon: Waypoints, iconName: "Waypoints" },
+  { name: "Web Server", icon: Server, iconName: "Server" },
+  { name: "App Server", icon: Puzzle, iconName: "Puzzle" },
+  { name: "Database", icon: Database, iconName: "Database" },
+  { name: "Cache", icon: Zap, iconName: "Zap" },
+  { name: "Message Queue", icon: GitFork, iconName: "GitFork" },
+  { name: "CDN", icon: Cloud, iconName: "Cloud" },
+  { name: "Firewall", icon: ShieldCheck, iconName: "ShieldCheck" },
+  { name: "Storage (S3)", icon: Box, iconName: "Box" },
+  { name: "Monitoring", icon: BarChartBig, iconName: "BarChartBig" },
 ];
 
 function AppContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [aiFeedback, setAiFeedback] = useState<EvaluateSystemDesignOutput | null>(null);
   const { toast } = useToast();
-  const { state: sidebarState } = useSidebar(); // Get sidebar state for logo collapsing
+  const { state: sidebarState } = useSidebar();
+  const canvasRef = useRef<DesignCanvasHandles>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -69,17 +70,27 @@ function AppContent() {
     },
   });
 
+  const onDragStart = (event: React.DragEvent, componentName: string, iconName: string) => {
+    const nodeData = { name: componentName, iconName: iconName };
+    event.dataTransfer.setData('application/reactflow', JSON.stringify(nodeData));
+    event.dataTransfer.effectAllowed = 'move';
+  };
+
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
     setAiFeedback(null);
 
     try {
-      const designDiagramJson = JSON.stringify({
-        info: "Diagram data from canvas (not implemented in this version).",
-        components: [],
-        connections: [],
+      let designDiagramJson = JSON.stringify({
+        info: "Default diagram data if canvas is not available.",
+        nodes: [],
+        edges: [],
       });
 
+      if (canvasRef.current) {
+        designDiagramJson = canvasRef.current.getDiagramJson();
+      }
+      
       const evaluationInput: EvaluateSystemDesignInput = {
         requirements: data.featureRequirements,
         designDiagram: designDiagramJson,
@@ -120,10 +131,11 @@ function AppContent() {
               <SidebarMenu>
                 {designComponents.map((component) => (
                   <SidebarMenuItem key={component.name}>
-                    <SidebarMenuButton 
-                      className="text-sm" 
+                    <SidebarMenuButton
+                      draggable={true}
+                      onDragStart={(event) => onDragStart(event, component.name, component.iconName)}
+                      className="text-sm cursor-grab"
                       tooltip={component.name}
-                      disabled // Conceptual, not draggable
                     >
                       <component.icon className="h-4 w-4" />
                       <span>{component.name}</span>
@@ -246,8 +258,8 @@ function AppContent() {
             <SidebarTrigger />
             <span className="ml-2 font-semibold text-lg text-primary">Architech AI</span>
         </header>
-        <main className="flex-1 overflow-auto p-2 md:p-4 h-[calc(100vh-3.5rem)] md:h-auto">
-            <DesignCanvas />
+        <main className="flex-1 overflow-auto p-0 h-[calc(100vh-3.5rem)] md:h-screen"> {/* Adjusted padding and height */}
+            <DesignCanvas ref={canvasRef} />
         </main>
       </SidebarInset>
     </>
@@ -256,14 +268,13 @@ function AppContent() {
 
 
 export function ArchitechApp() {
-  // Ensure SidebarProvider is only rendered client-side to avoid hydration issues with its internal state/cookies
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   if (!isClient) {
-    return null; // Or a loading spinner, but null is fine for initial render
+    return null; 
   }
 
   return (
