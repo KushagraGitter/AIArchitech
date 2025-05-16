@@ -14,7 +14,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers } from 'lucide-react';
+import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2 } from 'lucide-react';
 
 import {
   Sidebar,
@@ -33,7 +33,8 @@ import {
 } from '@/components/ui/sidebar';
 
 import { Logo } from '@/components/logo';
-import { DesignCanvas, type DesignCanvasHandles } from '@/components/design-canvas';
+import { DesignCanvas, type DesignCanvasHandles, type NodeData } from '@/components/design-canvas';
+import { PropertiesPanel, type ComponentConfig } from '@/components/properties-panel';
 import type { EvaluateSystemDesignInput, EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 import { evaluateSystemDesign } from '@/ai/flows/evaluate-system-design';
 import { Separator } from './ui/separator';
@@ -43,27 +44,101 @@ const formSchema = z.object({
 });
 type FormValues = z.infer<typeof formSchema>;
 
-const designComponents = [
-  { name: "Load Balancer", icon: Shuffle, iconName: "Shuffle", properties: {} },
-  { name: "API Gateway", icon: Waypoints, iconName: "Waypoints", properties: {} },
-  { name: "Web Server", icon: Server, iconName: "Server", properties: {} },
-  { name: "App Server", icon: Puzzle, iconName: "Puzzle", properties: {} },
-  { name: "Database", icon: Database, iconName: "Database", properties: {} },
-  { name: "Cache", icon: Zap, iconName: "Zap", properties: {} },
-  { name: "Message Queue", icon: GitFork, iconName: "GitFork", properties: {} },
-  { name: "CDN", icon: Cloud, iconName: "Cloud", properties: {} },
-  { name: "Firewall", icon: ShieldCheck, iconName: "ShieldCheck", properties: {} },
-  { name: "Storage (S3)", icon: Box, iconName: "Box", properties: {} },
-  { name: "Monitoring", icon: BarChartBig, iconName: "BarChartBig", properties: {} },
+export const designComponents: ComponentConfig[] = [
+  { 
+    name: "Load Balancer", 
+    icon: Shuffle, 
+    iconName: "Shuffle", 
+    initialProperties: { type: "Application LB", algorithm: "Round Robin" },
+    configurableProperties: [
+      { id: 'type', label: 'LB Type', type: 'text' },
+      { id: 'algorithm', label: 'Algorithm', type: 'text' },
+    ]
+  },
+  { 
+    name: "API Gateway", 
+    icon: Waypoints, 
+    iconName: "Waypoints", 
+    initialProperties: { protocol: "HTTPS/REST", authType: "API Key" },
+    configurableProperties: [
+      { id: 'protocol', label: 'Protocol', type: 'text' },
+      { id: 'authType', label: 'Auth Type', type: 'text' },
+    ]
+  },
+  { 
+    name: "Web Server", 
+    icon: Server, 
+    iconName: "Server", 
+    initialProperties: { instanceType: "t3.medium", scaling: "auto" },
+    configurableProperties: [
+      { id: 'instanceType', label: 'Instance Type', type: 'text' },
+      { id: 'scaling', label: 'Scaling', type: 'text' },
+    ]
+  },
+  { 
+    name: "App Server", 
+    icon: Puzzle, 
+    iconName: "Puzzle", 
+    initialProperties: { language: "Node.js", framework: "Express" },
+    configurableProperties: [
+      { id: 'language', label: 'Language', type: 'text' },
+      { id: 'framework', label: 'Framework', type: 'text' },
+    ]
+  },
+  { 
+    name: "Database", 
+    icon: Database, 
+    iconName: "Database", 
+    initialProperties: { 
+      type: "PostgreSQL", 
+      size: "db.m5.large", 
+      role: "primary", 
+      replicationSourceId: "",
+      shardingStrategy: "none",
+      shardKey: ""
+    },
+    configurableProperties: [
+      { id: 'type', label: 'DB Type', type: 'text' },
+      { id: 'size', label: 'Instance Size', type: 'text' },
+      { id: 'role', label: 'Role (primary/replica)', type: 'text' },
+      { id: 'replicationSourceId', label: 'Replication Source ID (if replica)', type: 'text' },
+      { id: 'shardingStrategy', label: 'Sharding Strategy (none/range/hash)', type: 'text' },
+      { id: 'shardKey', label: 'Shard Key (if sharded)', type: 'text' },
+    ]
+  },
+  { 
+    name: "Cache", 
+    icon: Zap, 
+    iconName: "Zap", 
+    initialProperties: { type: "Redis", evictionPolicy: "LRU" },
+    configurableProperties: [
+      { id: 'type', label: 'Cache Type', type: 'text' },
+      { id: 'evictionPolicy', label: 'Eviction Policy', type: 'text' },
+    ]
+  },
+  { 
+    name: "Message Queue", 
+    icon: GitFork, 
+    iconName: "GitFork", 
+    initialProperties: { type: "RabbitMQ", persistence: "durable" },
+    configurableProperties: [
+      { id: 'type', label: 'Queue Type', type: 'text' },
+      { id: 'persistence', label: 'Persistence', type: 'text' },
+    ]
+  },
+  { name: "CDN", icon: Cloud, iconName: "Cloud", initialProperties: { provider: "Cloudflare" }, configurableProperties: [{id: 'provider', label: 'Provider', type: 'text'}] },
+  { name: "Firewall", icon: ShieldCheck, iconName: "ShieldCheck", initialProperties: { type: "WAF" }, configurableProperties: [{id: 'type', label: 'Type', type: 'text'}] },
+  { name: "Storage (S3)", icon: Box, iconName: "Box", initialProperties: { bucketType: "Standard" }, configurableProperties: [{id: 'bucketType', label: 'Bucket Type', type: 'text'}] },
+  { name: "Monitoring", icon: BarChartBig, iconName: "BarChartBig", initialProperties: { tool: "Prometheus" }, configurableProperties: [{id: 'tool', label: 'Tool', type: 'text'}] },
 ];
 
-const initialTemplates: { name: string; nodes: Node[]; edges: Edge[] }[] = [
+const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }[] = [
   {
     name: "Basic Web Service",
     nodes: [
-      { id: 'template_lb_1', type: 'custom', position: { x: 250, y: 50 }, data: { label: 'Load Balancer', iconName: 'Shuffle', properties: {} } },
-      { id: 'template_ws_1', type: 'custom', position: { x: 250, y: 200 }, data: { label: 'Web Server', iconName: 'Server', properties: {} } },
-      { id: 'template_db_1', type: 'custom', position: { x: 250, y: 350 }, data: { label: 'Database', iconName: 'Database', properties: {} } },
+      { id: 'template_lb_1', type: 'custom', position: { x: 250, y: 50 }, data: { label: 'Load Balancer', iconName: 'Shuffle', properties: designComponents.find(c => c.name === "Load Balancer")?.initialProperties || {} } },
+      { id: 'template_ws_1', type: 'custom', position: { x: 250, y: 200 }, data: { label: 'Web Server', iconName: 'Server', properties: designComponents.find(c => c.name === "Web Server")?.initialProperties || {} } },
+      { id: 'template_db_1', type: 'custom', position: { x: 250, y: 350 }, data: { label: 'Database', iconName: 'Database', properties: designComponents.find(c => c.name === "Database")?.initialProperties || {} } },
     ],
     edges: [
       { id: 'template_e_lb_ws', source: 'template_lb_1', target: 'template_ws_1', label: 'Routes to', animated: true, style: { stroke: 'hsl(var(--primary))' } },
@@ -73,10 +148,10 @@ const initialTemplates: { name: string; nodes: Node[]; edges: Edge[] }[] = [
   {
     name: "Scalable API",
     nodes: [
-        { id: 'template_apigw_1', type: 'custom', position: { x: 100, y: 50 }, data: { label: 'API Gateway', iconName: 'Waypoints', properties: {} } },
-        { id: 'template_app_1', type: 'custom', position: { x: 100, y: 200 }, data: { label: 'App Server 1', iconName: 'Puzzle', properties: {} } },
-        { id: 'template_app_2', type: 'custom', position: { x: 300, y: 200 }, data: { label: 'App Server 2', iconName: 'Puzzle', properties: {} } },
-        { id: 'template_db_read_1', type: 'custom', position: { x: 200, y: 350 }, data: { label: 'DB Read Replica', iconName: 'Database', properties: {} } },
+        { id: 'template_apigw_1', type: 'custom', position: { x: 100, y: 50 }, data: { label: 'API Gateway', iconName: 'Waypoints', properties: designComponents.find(c => c.name === "API Gateway")?.initialProperties || {} } },
+        { id: 'template_app_1', type: 'custom', position: { x: 100, y: 200 }, data: { label: 'App Server', iconName: 'Puzzle', properties: designComponents.find(c => c.name === "App Server")?.initialProperties || {} } },
+        { id: 'template_app_2', type: 'custom', position: { x: 300, y: 200 }, data: { label: 'App Server', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), instanceId: '2'} } },
+        { id: 'template_db_read_1', type: 'custom', position: { x: 200, y: 350 }, data: { label: 'Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: 'replica', replicationSourceId: 'template_db_primary_implicit_id'} } }, // Assuming a primary exists
     ],
     edges: [
         { id: 'template_e_apigw_app1', source: 'template_apigw_1', target: 'template_app_1', label: 'Proxy', animated: true, style: { stroke: 'hsl(var(--primary))' } },
@@ -91,6 +166,7 @@ const initialTemplates: { name: string; nodes: Node[]; edges: Edge[] }[] = [
 function AppContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [aiFeedback, setAiFeedback] = useState<EvaluateSystemDesignOutput | null>(null);
+  const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
   const { toast } = useToast();
   const { state: sidebarState } = useSidebar();
   const canvasRef = useRef<DesignCanvasHandles>(null);
@@ -102,15 +178,16 @@ function AppContent() {
     },
   });
 
-  const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, properties: Record<string, any>) => {
-    const nodeData = { name: componentName, iconName: iconName, properties: properties || {} };
+  const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
+    const nodeData = { name: componentName, iconName: iconName, properties: initialProperties || {} };
     event.dataTransfer.setData('application/reactflow', JSON.stringify(nodeData));
     event.dataTransfer.effectAllowed = 'move';
   };
   
-  const loadTemplate = (nodes: Node[], edges: Edge[]) => {
+  const loadTemplate = (nodes: Node<NodeData>[], edges: Edge[]) => {
     if (canvasRef.current) {
       canvasRef.current.loadTemplate(nodes, edges);
+      setSelectedNode(null); // Clear selection when loading a template
        toast({
         title: "Template Loaded",
         description: "The selected template has been loaded onto the canvas.",
@@ -119,16 +196,35 @@ function AppContent() {
     }
   };
 
+  const handleNodeSelect = useCallback((node: Node<NodeData> | null) => {
+    setSelectedNode(node);
+  }, []);
+
+  const handleUpdateNodeProperties = (nodeId: string, updatedProperties: Record<string, any>) => {
+    if (canvasRef.current) {
+      canvasRef.current.updateNodeProperties(nodeId, updatedProperties);
+    }
+    // Update selectedNode state as well if it's the one being edited
+    if (selectedNode && selectedNode.id === nodeId) {
+      setSelectedNode(prevNode => prevNode ? ({
+        ...prevNode,
+        data: {
+          ...prevNode.data,
+          properties: { ...prevNode.data.properties, ...updatedProperties }
+        }
+      }) : null);
+    }
+  };
+  
+  const selectedComponentConfig = selectedNode ? designComponents.find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName) : undefined;
+
+
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsLoading(true);
     setAiFeedback(null);
 
     try {
-      let designDiagramJson = JSON.stringify({
-        info: "Default diagram data if canvas is not available.",
-        nodes: [],
-        edges: [],
-      });
+      let designDiagramJson = JSON.stringify({ nodes: [], edges: [] });
 
       if (canvasRef.current) {
         designDiagramJson = canvasRef.current.getDiagramJson();
@@ -176,7 +272,7 @@ function AppContent() {
                   <SidebarMenuItem key={component.name}>
                     <SidebarMenuButton
                       draggable={true}
-                      onDragStart={(event) => onDragStart(event, component.name, component.iconName, component.properties)}
+                      onDragStart={(event) => onDragStart(event, component.name, component.iconName, component.initialProperties)}
                       className="text-sm cursor-grab"
                       tooltip={component.name}
                     >
@@ -211,7 +307,6 @@ function AppContent() {
             </SidebarGroup>
 
             <Separator className="my-2" />
-
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -306,6 +401,7 @@ function AppContent() {
                         {id: 'security', label: 'Security', data: aiFeedback.security},
                         {id: 'maintainability', label: 'Maintainability', data: aiFeedback.maintainability},
                       ].map(criterion => (
+                        criterion.data && // Ensure criterion data exists
                         <AccordionItem value={criterion.id} key={criterion.id}>
                           <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">
                             {criterion.label}: <span className="ml-1 font-semibold text-primary">{criterion.data.rating}</span>
@@ -347,14 +443,27 @@ function AppContent() {
             </p>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none">
+      <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex">
         <header className="h-14 flex items-center px-4 border-b md:hidden">
             <SidebarTrigger />
             <span className="ml-2 font-semibold text-lg text-primary">Architech AI</span>
         </header>
         <main className="flex-1 overflow-auto p-0 h-[calc(100vh-3.5rem)] md:h-screen">
-            <DesignCanvas ref={canvasRef} />
+            <DesignCanvas ref={canvasRef} onNodeSelect={handleNodeSelect} />
         </main>
+        {selectedNode && selectedComponentConfig && (
+          <aside className="w-80 border-l border-border bg-card hidden md:block">
+            <ScrollArea className="h-full">
+              <PropertiesPanel
+                key={selectedNode.id} // Force re-mount on node change to reset form
+                selectedNode={selectedNode}
+                componentConfig={selectedComponentConfig}
+                onUpdateNode={handleUpdateNodeProperties}
+                onClose={() => setSelectedNode(null)}
+              />
+            </ScrollArea>
+          </aside>
+        )}
       </SidebarInset>
     </>
   );
@@ -377,4 +486,3 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
-
