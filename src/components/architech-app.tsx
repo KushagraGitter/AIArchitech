@@ -15,7 +15,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, Calculator } from 'lucide-react';
+import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText } from 'lucide-react';
 
 import {
   Sidebar,
@@ -43,12 +43,21 @@ import { ThemeToggleButton } from './theme-toggle-button';
 
 
 const formSchema = z.object({
-  featureRequirements: z.string().min(20, { message: "Feature requirements should be descriptive, at least 20 characters." }),
-  backOfTheEnvelopeCalculations: z.string().optional(),
+  // These fields will be populated from canvas nodes now
 });
 type FormValues = z.infer<typeof formSchema>;
 
 export const designComponents: ComponentConfig[] = [
+  {
+    name: "Info Note",
+    icon: StickyNote,
+    iconName: "StickyNote",
+    initialProperties: { title: "Note", content: "Enter your text here..." },
+    configurableProperties: [
+      { id: 'title', label: 'Title', type: 'text' },
+      { id: 'content', label: 'Content', type: 'textarea' }, // Using textarea type
+    ]
+  },
   {
     name: "Load Balancer",
     icon: Shuffle,
@@ -168,6 +177,7 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
   {
     name: "Basic Web Service",
     nodes: [
+      { id: 'bws_req_1', type: 'custom', position: { x: 50, y: -50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Feature Requirements', content: 'Design a basic web service that serves user profiles.'} } },
       { id: 'bws_lb_1', type: 'custom', position: { x: 250, y: 50 }, data: { label: 'Load Balancer', iconName: 'Shuffle', properties: designComponents.find(c => c.name === "Load Balancer")?.initialProperties || {} } },
       { id: 'bws_ws_1', type: 'custom', position: { x: 250, y: 200 }, data: { label: 'Web Server', iconName: 'Server', properties: designComponents.find(c => c.name === "Web Server")?.initialProperties || {} } },
       { id: 'bws_db_1', type: 'custom', position: { x: 250, y: 350 }, data: { label: 'Database', iconName: 'Database', properties: designComponents.find(c => c.name === "Database")?.initialProperties || {} } },
@@ -180,6 +190,8 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
   {
     name: "Scalable API",
     nodes: [
+        { id: 'sa_req_1', type: 'custom', position: { x: -100, y: -50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Feature Requirements', content: 'Design a scalable API for a social media application. Focus on read-heavy workloads for user timelines.'} } },
+        { id: 'sa_bote_1', type: 'custom', position: { x: 300, y: -50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'BOTE Calculations', content: '1M DAU\n100 reads/user/day\n10 writes/user/day\nRead QPS: ~1k (avg), ~10k (peak)\nWrite QPS: ~100 (avg), ~1k (peak)'} } },
         { id: 'sa_apigw_1', type: 'custom', position: { x: 100, y: 50 }, data: { label: 'API Gateway', iconName: 'Waypoints', properties: designComponents.find(c => c.name === "API Gateway")?.initialProperties || {} } },
         { id: 'sa_app_1', type: 'custom', position: { x: 0, y: 200 }, data: { label: 'App Server', iconName: 'Puzzle', properties: designComponents.find(c => c.name === "App Server")?.initialProperties || {} } },
         { id: 'sa_app_2', type: 'custom', position: { x: 200, y: 200 }, data: { label: 'App Server', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), instanceId: '2'} } },
@@ -199,13 +211,14 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
   {
     name: "Chat Application",
     nodes: [
+      { id: 'chat_req_1', type: 'custom', position: { x: -150, y: 0 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Feature Requirements', content: 'Design a chat application supporting 1-1 and group chats, message history, presence, typing indicators. Scalability: 1M concurrent users.'} } },
       { id: 'chat_client_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'Client Device', iconName: 'Smartphone', properties: designComponents.find(c => c.name === "Client Device")?.initialProperties || {} } },
       { id: 'chat_lb_1', type: 'custom', position: { x: 250, y: 50 }, data: { label: 'Load Balancer (API)', iconName: 'Shuffle', properties: designComponents.find(c => c.name === "Load Balancer")?.initialProperties || {} } },
       { id: 'chat_apigw_1', type: 'custom', position: { x: 250, y: 200 }, data: { label: 'API Gateway', iconName: 'Waypoints', properties: designComponents.find(c => c.name === "API Gateway")?.initialProperties || {} } },
       { id: 'chat_usersvc_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'User Service', iconName: 'Users', properties: designComponents.find(c => c.name === "User Service")?.initialProperties || {} } },
       { id: 'chat_chatsvc_1', type: 'custom', position: { x: 450, y: 200 }, data: { label: 'Chat Service', iconName: 'MessageSquare', properties: designComponents.find(c => c.name === "Chat Service")?.initialProperties || {} } },
       { id: 'chat_ws_lb_1', type: 'custom', position: { x: 250, y: 350 }, data: { label: 'Load Balancer (WS)', iconName: 'Shuffle', properties: {...(designComponents.find(c => c.name === "Load Balancer")?.initialProperties || {}), type: "Network LB"} } },
-      { id: 'chat_ws_server_1', type: 'custom', position: { x: 450, y: 350 }, data: { label: 'WebSocket Server', iconName: 'ServerCog', properties: {protocol: "WSS", framework: "Socket.IO/SignalR", connections: "1M+"} } }, // Assuming ServerCog can represent this, or use Server
+      { id: 'chat_ws_server_1', type: 'custom', position: { x: 450, y: 350 }, data: { label: 'WebSocket Server', iconName: 'ServerCog', properties: {protocol: "WSS", framework: "Socket.IO/SignalR", connections: "1M+"} } }, 
       { id: 'chat_msgdb_1', type: 'custom', position: { x: 650, y: 200 }, data: { label: 'Message Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Cassandra", consistency: "Eventual (for messages)", purpose: "Stores chat messages, read-heavy for history"} } },
       { id: 'chat_userdb_1', type: 'custom', position: { x: 650, y: -50 }, data: { label: 'User Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "PostgreSQL", role: "primary", purpose: "User accounts, profiles, contacts"} } },
       { id: 'chat_cache_1', type: 'custom', position: { x: 650, y: 350 }, data: { label: 'Presence Cache', iconName: 'Zap', properties: {...(designComponents.find(c => c.name === "Cache")?.initialProperties || {}), type: "Redis", use: "User presence, Session data, Typing indicators"} } },
@@ -227,6 +240,7 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
   {
     name: "TinyURL Service",
     nodes: [
+      { id: 'tiny_req_1', type: 'custom', position: { x: -150, y: 50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Feature Requirements', content: 'Design a TinyURL-like service. Requirements: Shorten URL, Redirect to original URL, High availability, Low latency reads. Custom short links (optional). Analytics (optional).'} } },
       { id: 'tiny_client_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'User Browser', iconName: 'Smartphone', properties: designComponents.find(c => c.name === "Client Device")?.initialProperties || {} } },
       { id: 'tiny_apigw_1', type: 'custom', position: { x: 250, y: 150 }, data: { label: 'API Gateway', iconName: 'Waypoints', properties: {...(designComponents.find(c => c.name === "API Gateway")?.initialProperties || {}), rateLimit: "High for reads, Moderate for writes"} } },
       { id: 'tiny_urlsvc_1', type: 'custom', position: { x: 450, y: 150 }, data: { label: 'URL Shortener Service', iconName: 'Link2', properties: designComponents.find(c => c.name === "URL Shortener Service")?.initialProperties || {} } },
@@ -244,6 +258,7 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
   {
     name: "Sharded Database System",
     nodes: [
+      { id: 'shard_req_1', type: 'custom', position: { x: -150, y: 100 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Scenario', content: 'Design the database sharding for a system with a very large number of users (e.g., 1 billion users), where user data needs to be partitioned.'} } },
       { id: 'shard_app_1', type: 'custom', position: { x: 50, y: 200 }, data: { label: 'App Server', iconName: 'Puzzle', properties: designComponents.find(c => c.name === "App Server")?.initialProperties || {} } },
       { id: 'shard_router_1', type: 'custom', position: { x: 250, y: 200 }, data: { label: 'DB Router/Coordinator', iconName: 'ServerCog', properties: designComponents.find(c => c.name === "DB Router/Coordinator")?.initialProperties || {} } },
       { id: 'shard_db1_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'DB Shard 1', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: "shard-primary", shardingStrategy: "hash-based", shardKey: "user_id", type: "MySQL", custom: {shard_info: "Shard 1 (e.g., UserIDs ending 0-4)"}} } },
@@ -260,6 +275,7 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
   {
     name: "Message Queue System",
     nodes: [
+      { id: 'mq_req_1', type: 'custom', position: { x: -150, y: 50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Scenario', content: 'Design a system for asynchronous order processing. When an order is placed, events need to be reliably sent to notification and inventory services.'} } },
       { id: 'mq_producer_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'Producer Service', iconName: 'Server', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Order Processing", event_type: "OrderCreatedEvent"}} } },
       { id: 'mq_queue_1', type: 'custom', position: { x: 250, y: 150 }, data: { label: 'Message Queue', iconName: 'GitFork', properties: designComponents.find(c => c.name === "Message Queue")?.initialProperties || {} } },
       { id: 'mq_consumer1_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'Consumer (Notifications)', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Notification Sending", processing_logic: "Send email/SMS"}} } },
@@ -286,12 +302,10 @@ function AppContent() {
   const { state: sidebarState } = useSidebar();
   const canvasRef = useRef<DesignCanvasHandles>(null);
 
+  // Form is no longer directly used for sidebar inputs for requirements/BOTE
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      featureRequirements: "",
-      backOfTheEnvelopeCalculations: "",
-    },
+    defaultValues: {},
   });
 
   const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
@@ -334,22 +348,63 @@ function AppContent() {
   const selectedComponentConfig = selectedNode ? designComponents.find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName || c.name === selectedNode.data.label.replace(/ \(.+\)$/, '')) : undefined;
 
 
-  const onSubmit: SubmitHandler<FormValues> = async (data) => {
+  const onSubmit: SubmitHandler<FormValues> = async (_formData) => { // formData is no longer directly used
     setIsLoading(true);
     setAiFeedback(null);
-    setSelectedNode(null); // Deselect node before evaluation
+    setSelectedNode(null); 
 
     try {
       let designDiagramJson = JSON.stringify({ nodes: [], edges: [] });
+      let extractedRequirements = "";
+      let extractedBoteCalculations = "";
 
       if (canvasRef.current) {
-        designDiagramJson = canvasRef.current.getDiagramJson();
+        const diagramString = canvasRef.current.getDiagramJson();
+        designDiagramJson = diagramString;
+        const diagram = JSON.parse(diagramString) as { nodes: Node<NodeData>[], edges: Edge[] };
+        
+        const requirementsNotes: string[] = [];
+        const boteNotes: string[] = [];
+
+        diagram.nodes.forEach(node => {
+          if (node.data.label === "Info Note" && node.data.properties) {
+            const title = (node.data.properties.title || "").toLowerCase();
+            const content = node.data.properties.content || "";
+            if (title.includes("requirement")) {
+              requirementsNotes.push(content);
+            } else if (title.includes("bote") || title.includes("calculation")) {
+              boteNotes.push(content);
+            } else {
+              // Default to requirements if title is generic like "Note" or empty
+              // or if it doesn't match BOTE keywords specifically.
+              // This can be refined. For now, only explicitly matched titles go to BOTE.
+              if(!title.includes("bote") && !title.includes("calculation")){
+                 requirementsNotes.push(content); // Or handle as general notes if AI supports it
+              }
+            }
+          }
+        });
+        extractedRequirements = requirementsNotes.join("\n\n---\n\n");
+        extractedBoteCalculations = boteNotes.join("\n\n---\n\n");
+
+        if (!extractedRequirements && requirementsNotes.length === 0 && diagram.nodes.some(n => n.data.label === "Info Note")) {
+          // If info notes exist but none are titled for requirements or BOTE, concatenate all as requirements
+          const allNotesContent = diagram.nodes
+            .filter(node => node.data.label === "Info Note" && node.data.properties?.content)
+            .map(node => node.data.properties.content)
+            .join("\n\n---\n\n");
+          if(allNotesContent) extractedRequirements = allNotesContent;
+        }
+         if (!extractedRequirements) {
+           extractedRequirements = "No feature requirements provided via Info Notes on the canvas.";
+         }
+
       }
       
       const evaluationInput: EvaluateSystemDesignInput = {
-        requirements: data.featureRequirements,
+        requirements: extractedRequirements,
         designDiagram: designDiagramJson,
-        backOfTheEnvelopeCalculations: data.backOfTheEnvelopeCalculations,
+        backOfTheEnvelopeCalculations: extractedBoteCalculations || undefined, // Send undefined if empty
       };
 
       const feedback = await evaluateSystemDesign(evaluationInput);
@@ -380,9 +435,10 @@ function AppContent() {
         </SidebarHeader>
         <ShadSidebarContent className="p-0">
           <ScrollArea className="h-full">
+            {/* Form element is kept for structure but no longer has direct input fields for requirements/BOTE */}
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0"> {/* Reduced space */}
-                <Accordion type="multiple" defaultValue={["components-accordion", "requirements-accordion"]} className="w-full">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0">
+                <Accordion type="multiple" defaultValue={["components-accordion", "templates-accordion"]} className="w-full">
                   <AccordionItem value="components-accordion" className="border-none">
                     <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
                       <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
@@ -426,7 +482,7 @@ function AppContent() {
                                 className="text-sm"
                                 tooltip={`Load ${template.name} template`}
                               >
-                                <Layers className="h-4 w-4" /> {/* Consistent icon */}
+                                <Layers className="h-4 w-4" /> 
                                 <span>{template.name}</span>
                               </SidebarMenuButton>
                             </SidebarMenuItem>
@@ -436,63 +492,8 @@ function AppContent() {
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="requirements-accordion" className="border-none">
-                    <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
-                      <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
-                        <Sparkles className="h-4 w-4" /> Feature Requirements
-                      </SidebarGroupLabel>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-1 pb-0">
-                      <SidebarGroup className="p-2 pt-0">
-                        <FormField
-                          control={form.control}
-                          name="featureRequirements"
-                          render={({ field }) => (
-                            <FormItem className="px-2 py-2"> {/* Added py-2 */}
-                              <FormLabel className="sr-only">Feature Requirements</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="e.g., Build a YouTube-like video streaming platform..."
-                                  className="min-h-[100px] text-sm bg-input"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </SidebarGroup>
-                    </AccordionContent>
-                  </AccordionItem>
+                  {/* Requirements and BOTE Accordions are removed from here */}
 
-                  <AccordionItem value="calculations-accordion" className="border-none">
-                    <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
-                      <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
-                        <Calculator className="h-4 w-4" /> BOTE & Notes
-                      </SidebarGroupLabel>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-1 pb-0">
-                      <SidebarGroup className="p-2 pt-0">
-                        <FormField
-                          control={form.control}
-                          name="backOfTheEnvelopeCalculations"
-                          render={({ field }) => (
-                            <FormItem className="px-2 py-2"> {/* Added py-2 */}
-                              <FormLabel className="sr-only">Back of the Envelope Calculations & Notes</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="e.g., QPS: 10k, Storage: 1TB/day, DAU: 1M..."
-                                  className="min-h-[100px] text-sm bg-input"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </SidebarGroup>
-                    </AccordionContent>
-                  </AccordionItem>
                 </Accordion>
             
                 <Separator className="my-2" />
@@ -618,13 +619,13 @@ function AppContent() {
             <ThemeToggleButton />
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col"> {/* Changed to flex-col */}
+      <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col"> 
         <header className="h-14 flex items-center px-4 border-b md:hidden">
             <SidebarTrigger />
             <span className="ml-2 font-semibold text-lg text-primary">Architech AI</span>
         </header>
         <ReactFlowProvider>
-          <div className="flex flex-1 min-h-0"> {/* Added min-h-0 for flex child */}
+          <div className="flex flex-1 min-h-0"> 
             <main className="flex-1 overflow-auto p-0 h-[calc(100vh-3.5rem)] md:h-screen">
                 <DesignCanvas ref={canvasRef} onNodeSelect={handleNodeSelect} />
             </main>
@@ -682,3 +683,6 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
+
+
+    

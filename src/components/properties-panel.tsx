@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, PlusCircle, Save, Settings2, Trash2 } from 'lucide-react';
 import type { NodeData } from './design-canvas';
+import { Textarea } from '@/components/ui/textarea'; // Import Textarea
 import {
   Select,
   SelectContent,
@@ -22,8 +23,8 @@ import {
 export interface ConfigurableProperty {
   id: string;
   label: string;
-  type: 'text' | 'number' | 'boolean' | 'select';
-  options?: string[]; // For select type
+  type: 'text' | 'number' | 'boolean' | 'select' | 'textarea'; // Added textarea
+  options?: string[]; 
 }
 
 export interface ComponentConfig {
@@ -140,13 +141,21 @@ export function PropertiesPanel({ selectedNode, componentConfig, onUpdateNode, o
                         ))}
                       </SelectContent>
                     </Select>
+                  ) : prop.type === 'textarea' ? (
+                     <Textarea
+                      id={prop.id}
+                      value={properties[prop.id] || ''}
+                      onChange={(e) => handleInputChange(prop.id, e.target.value)}
+                      className="mt-1 text-sm min-h-[100px] bg-input"
+                      placeholder={`Enter ${prop.label}`}
+                    />
                   ) : (
                     <Input
                       id={prop.id}
                       type={prop.type === 'number' ? 'number' : 'text'}
                       value={properties[prop.id] || ''}
                       onChange={(e) => handleInputChange(prop.id, e.target.value)}
-                      className="mt-1 h-8 text-sm"
+                      className="mt-1 h-8 text-sm bg-input"
                     />
                   )}
                 </div>
@@ -170,13 +179,13 @@ export function PropertiesPanel({ selectedNode, componentConfig, onUpdateNode, o
                     placeholder="Key"
                     value={customProp.key}
                     onChange={(e) => handleCustomPropChange(index, 'key', e.target.value)}
-                    className="h-8 text-sm"
+                    className="h-8 text-sm bg-input"
                   />
                   <Input
                     placeholder="Value"
                     value={customProp.value}
                     onChange={(e) => handleCustomPropChange(index, 'value', e.target.value)}
-                    className="h-8 text-sm"
+                    className="h-8 text-sm bg-input"
                   />
                   <Button variant="ghost" size="icon" onClick={() => removeCustomProperty(index)} className="h-7 w-7 text-destructive shrink-0">
                     <Trash2 className="h-3.5 w-3.5" />
@@ -199,3 +208,5 @@ export function PropertiesPanel({ selectedNode, componentConfig, onUpdateNode, o
     </div>
   );
 }
+
+    
