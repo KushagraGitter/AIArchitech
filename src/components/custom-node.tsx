@@ -18,7 +18,8 @@ const getIconComponent = (iconName: string): React.ElementType => {
   return foundIconKey ? icons[foundIconKey] : LucideIcons.Box; // Default to Box if not found
 };
 
-export function CustomNode({ data, selected }: NodeProps<{ label: string; iconName: string }>) {
+// Update NodeProps to include properties in the data object
+export function CustomNode({ data, selected }: NodeProps<{ label: string; iconName: string; properties?: Record<string, any> }>) {
   const IconComponent = getIconComponent(data.iconName);
 
   return (
@@ -29,12 +30,15 @@ export function CustomNode({ data, selected }: NodeProps<{ label: string; iconNa
         <IconComponent className={`h-6 w-6 shrink-0 ${selected ? 'text-primary' : 'text-muted-foreground'}`} />
         <CardTitle className={`text-sm font-semibold truncate ${selected ? 'text-primary' : 'text-card-foreground'}`}>{data.label}</CardTitle>
       </CardHeader>
-      {/* Optional: Add content area if needed in the future */}
-      {/* <CardContent className="p-2 text-xs text-muted-foreground">
-        Details...
-      </CardContent> */}
+      {/* 
+        Future enhancement: Display some properties or a configure button
+        {data.properties && Object.keys(data.properties).length > 0 && (
+          <CardContent className="p-2 text-xs text-muted-foreground">
+            Properties: {Object.keys(data.properties).join(', ')}
+          </CardContent>
+        )}
+      */}
       
-      {/* Handles with themed styling */}
       <Handle 
         type="target" 
         position={Position.Top} 

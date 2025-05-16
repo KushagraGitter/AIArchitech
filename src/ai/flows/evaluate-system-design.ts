@@ -1,3 +1,4 @@
+
 // The evaluateSystemDesign flow evaluates a system design against given requirements, providing feedback on scalability, availability, fault tolerance, cost efficiency, security, and maintainability.
 //
 // - evaluateSystemDesign - A function that evaluates the system design.
@@ -15,7 +16,7 @@ const EvaluateSystemDesignInputSchema = z.object({
     .describe('The system requirements, as a natural language description. Include functional and non-functional requirements if available (e.g., target number of users, expected uptime, specific technologies to use/avoid, budget constraints).'),
   designDiagram: z
     .string()
-    .describe("The system design diagram, as a JSON string. This JSON should represent an object with two keys: 'nodes' and 'edges'. 'nodes' is an array of objects, each representing a component with properties like id, type, position, and data (e.g., label, iconName). 'edges' is an array of objects, each representing a connection between components with properties like id, source node id, and target node id."),
+    .describe("The system design diagram, as a JSON string. This JSON should represent an object with two keys: 'nodes' and 'edges'. 'nodes' is an array of objects, each representing a component with properties like id, type, position, and data (which includes 'label', 'iconName', and optionally 'properties' for component-specific configurations like instance type or capacity). 'edges' is an array of objects, each representing a connection with properties like id, source, target, and optionally 'label' for the connection type (e.g., 'API Call', 'Data Sync')."),
 });
 export type EvaluateSystemDesignInput = z.infer<typeof EvaluateSystemDesignInputSchema>;
 
@@ -28,11 +29,11 @@ const EvaluationCriterionSchema = z.object({
 const EvaluateSystemDesignOutputSchema = z.object({
   overallAssessment: z.string().describe('A brief (2-3 sentences) overall summary of the system design evaluation, highlighting the most critical findings.'),
   complexity: EvaluationCriterionSchema.describe('Evaluation of the system design complexity. Consider factors like number of components, interdependencies, and ease of understanding.'),
-  scalability: EvaluationCriterionSchema.describe('Evaluation of the system design scalability. Assess its ability to handle increased load (users, data, transactions) both horizontally and vertically.'),
+  scalability: EvaluationCriterionSchema.describe('Evaluation of the system design scalability. Assess its ability to handle increased load (users, data, transactions) both horizontally and vertically. Consider any component `properties` that might affect this.'),
   availability: EvaluationCriterionSchema.describe('Evaluation of the system design availability and resilience. Consider single points of failure, redundancy, and failover mechanisms.'),
   faultTolerance: EvaluationCriterionSchema.describe('Evaluation of the system design fault tolerance. How well does the system withstand and recover from component failures?'),
-  costEfficiency: EvaluationCriterionSchema.describe('Evaluation of the system design cost-efficiency. Consider resource utilization, choice of services, and potential for optimization. Avoid specific monetary values unless provided in requirements.'),
-  security: EvaluationCriterionSchema.describe('Evaluation of the system design security. Consider data protection, authentication, authorization, network security, and common vulnerabilities.'),
+  costEfficiency: EvaluationCriterionSchema.describe('Evaluation of the system design cost-efficiency. Consider resource utilization, choice of services (noting any `properties` like tier or size if provided), and potential for optimization. Avoid specific monetary values unless provided in requirements.'),
+  security: EvaluationCriterionSchema.describe('Evaluation of the system design security. Consider data protection, authentication, authorization, network security, and common vulnerabilities. Note edge labels if they imply security boundaries or sensitive data flow.'),
   maintainability: EvaluationCriterionSchema.describe('Evaluation of the system design maintainability. Consider ease of updates, debugging, monitoring, and operational overhead.'),
   suggestionsForImprovement: z.array(z.string()).describe('General suggestions for improving the overall system design, particularly those not tied to a single criterion above or cross-cutting concerns.'),
   identifiedStrengths: z.array(z.string()).optional().describe('Key strengths or well-implemented aspects identified in the design.'),
@@ -56,7 +57,11 @@ System Requirements:
 System Design Diagram (JSON representation of nodes and edges):
 {{#if designDiagram}}{{{designDiagram}}}{{else}}No diagram provided. Evaluate based on requirements only if possible, or state that a diagram is needed for a full evaluation.{{/if}}
 
-Carefully analyze the requirements and the diagram (if provided). Provide a comprehensive evaluation structured according to the output schema. For each criterion (Complexity, Scalability, Availability, Fault Tolerance, Cost Efficiency, Security, Maintainability), provide a rating, a detailed explanation for that rating, and specific, actionable recommendations for improvement if applicable.
+Carefully analyze the requirements and the diagram.
+- If the diagram contains 'nodes' with a 'data.properties' field, consider these properties (e.g., capacity, instance_type) in your evaluation of relevant criteria like scalability or cost.
+- If 'edges' in the diagram have a 'label' (e.g., 'API Call', 'Async Event'), use this information to understand the nature of interactions between components, which might affect latency, coupling, or fault tolerance.
+
+Provide a comprehensive evaluation structured according to the output schema. For each criterion (Complexity, Scalability, Availability, Fault Tolerance, Cost Efficiency, Security, Maintainability), provide a rating, a detailed explanation for that rating, and specific, actionable recommendations for improvement if applicable.
 
 Your evaluation should be constructive, insightful, and practical. Assume the user is looking for guidance to improve their design.
 
@@ -71,7 +76,7 @@ Complexity:
 
 Scalability:
   Rating: (Excellent, Good, Fair, Poor, Needs Improvement, Not Applicable)
-  Explanation: (Detailed explanation)
+  Explanation: (Detailed explanation, mentioning node properties if relevant)
   Specific Recommendations: (Array of specific recommendations, if any)
 
 Availability:
@@ -81,17 +86,17 @@ Availability:
 
 Fault Tolerance:
   Rating: (Excellent, Good, Fair, Poor, Needs Improvement, Not Applicable)
-  Explanation: (Detailed explanation)
+  Explanation: (Detailed explanation, mentioning edge labels if relevant to failure modes)
   Specific Recommendations: (Array of specific recommendations, if any)
 
 Cost Efficiency:
   Rating: (Excellent, Good, Fair, Poor, Needs Improvement, Not Applicable)
-  Explanation: (Detailed explanation)
+  Explanation: (Detailed explanation, mentioning node properties if relevant to cost)
   Specific Recommendations: (Array of specific recommendations, if any)
 
 Security:
   Rating: (Excellent, Good, Fair, Poor, Needs Improvement, Not Applicable)
-  Explanation: (Detailed explanation)
+  Explanation: (Detailed explanation, mentioning edge labels if relevant to security zones or data flow)
   Specific Recommendations: (Array of specific recommendations, if any)
 
 Maintainability:
