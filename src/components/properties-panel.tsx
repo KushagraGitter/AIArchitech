@@ -10,12 +10,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, PlusCircle, Save, Settings2, Trash2 } from 'lucide-react';
-import type { NodeData } from './design-canvas'; // Assuming NodeData is exported from design-canvas
+import type { NodeData } from './design-canvas';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface ConfigurableProperty {
   id: string;
   label: string;
-  type: 'text' | 'number' | 'boolean' | 'select'; // Add more types as needed
+  type: 'text' | 'number' | 'boolean' | 'select';
   options?: string[]; // For select type
 }
 
@@ -45,7 +52,9 @@ export function PropertiesPanel({ selectedNode, componentConfig, onUpdateNode, o
     const custom: Array<{ key: string; value: string }> = [];
     if (currentProps.custom) {
       for (const key in currentProps.custom) {
-        custom.push({ key, value: String(currentProps.custom[key]) });
+        if (Object.prototype.hasOwnProperty.call(currentProps.custom, key)) {
+            custom.push({ key, value: String(currentProps.custom[key]) });
+        }
       }
     }
     setCustomProperties(custom);
@@ -55,8 +64,12 @@ export function PropertiesPanel({ selectedNode, componentConfig, onUpdateNode, o
     setProperties(prev => ({ ...prev, [propId]: value }));
   };
 
+  const handleSelectChange = (propId: string, value: string) => {
+    setProperties(prev => ({ ...prev, [propId]: value }));
+  };
+
   const handleCustomPropChange = (index: number, field: 'key' | 'value', value: string) => {
-    setCustomProperties(prev => 
+    setCustomProperties(prev =>
       prev.map((prop, i) => (i === index ? { ...prop, [field]: value } : prop))
     );
   };
@@ -76,7 +89,7 @@ export function PropertiesPanel({ selectedNode, componentConfig, onUpdateNode, o
         finalCustomProps[prop.key.trim()] = prop.value;
       }
     });
-    
+
     const updatedNodeProperties = {
       ...properties,
       custom: finalCustomProps,
@@ -95,14 +108,14 @@ export function PropertiesPanel({ selectedNode, componentConfig, onUpdateNode, o
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Settings2 className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">{componentConfig.name} Properties</CardTitle>
+            <CardTitle className="text-lg">{selectedNode.data.label} Properties</CardTitle>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7">
             <X className="h-4 w-4" />
           </Button>
         </div>
       </CardHeader>
-      
+
       <ScrollArea className="flex-1">
         <CardContent className="p-4 space-y-6">
           <div>
@@ -111,13 +124,31 @@ export function PropertiesPanel({ selectedNode, componentConfig, onUpdateNode, o
               {componentConfig.configurableProperties.map(prop => (
                 <div key={prop.id}>
                   <Label htmlFor={prop.id} className="text-xs">{prop.label}</Label>
-                  <Input
-                    id={prop.id}
-                    type={prop.type === 'number' ? 'number' : 'text'} // Basic handling for now
-                    value={properties[prop.id] || ''}
-                    onChange={(e) => handleInputChange(prop.id, e.target.value)}
-                    className="mt-1 h-8 text-sm"
-                  />
+                  {prop.type === 'select' && prop.options ? (
+                    <Select
+                      value={properties[prop.id] || ''}
+                      onValueChange={(value) => handleSelectChange(prop.id, value)}
+                    >
+                      <SelectTrigger id={prop.id} className="mt-1 h-8 text-sm">
+                        <SelectValue placeholder={`Select ${prop.label}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {prop.options.map(option => (
+                          <SelectItem key={option} value={option} className="text-sm">
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id={prop.id}
+                      type={prop.type === 'number' ? 'number' : 'text'}
+                      value={properties[prop.id] || ''}
+                      onChange={(e) => handleInputChange(prop.id, e.target.value)}
+                      className="mt-1 h-8 text-sm"
+                    />
+                  )}
                 </div>
               ))}
             </div>
