@@ -3,7 +3,6 @@
 
 import React, { useState, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import ReactFlow, {
-  // ReactFlowProvider, // Removed from here
   addEdge,
   useNodesState,
   useEdgesState,
@@ -20,6 +19,7 @@ import ReactFlow, {
   useOnSelectionChange,
   type NodeChange,
   type EdgeChange,
+  ReactFlowProvider, // Ensure ReactFlowProvider is imported
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -28,7 +28,7 @@ import { CustomNode } from './custom-node';
 export interface NodeData {
   label: string;
   iconName: string;
-  properties: Record<string, any>; // Made mandatory, will be initialized
+  properties: Record<string, any>; 
 }
 
 export interface DesignCanvasHandles {
@@ -68,7 +68,6 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       onNodesChangeInternal(changes);
-      // If a node is removed, ensure it's deselected
       changes.forEach(change => {
         if (change.type === 'remove') {
           onNodeSelect(null);
@@ -163,7 +162,6 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
         console.warn("ReactFlow instance not available for getDiagramJson");
         return JSON.stringify({ nodes: [], edges: [] });
       }
-      // Ensure properties are included for each node
       const nodesWithFullData = nodes.map(node => ({
         ...node,
         data: {
@@ -176,7 +174,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
     loadTemplate: (initialNodes: Node<NodeData>[], initialEdges: Edge[]) => {
       setNodes(initialNodes.map(n => ({...n, data: {...n.data, properties: n.data.properties || {}}})));
       setEdges(initialEdges);
-      onNodeSelect(null); // Deselect any node when loading a template
+      onNodeSelect(null); 
 
       const maxNodeId = initialNodes.reduce((max, node) => {
         const num = parseInt(node.id.split('_').pop() || '0');
@@ -213,7 +211,6 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
   }));
   
   return (
-    // <ReactFlowProvider> // REMOVED from here
       <div className="h-full w-full" ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodes}
@@ -228,16 +225,14 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           nodeTypes={nodeTypes}
           fitView
           className="bg-background shadow-inner"
-          defaultEdgeOptions={{
+          defaultEdgeOptions={{ // Default styles for edges
             animated: true,
             style: { strokeWidth: 2, stroke: 'hsl(var(--accent))' },
             markerEnd: { type: MarkerType.ArrowClosed, color: 'hsl(var(--accent))' },
-            labelStyle: { fill: 'hsl(var(--foreground))', fontWeight: 500 },
-            labelBgStyle: { fill: 'hsl(var(--background))', fillOpacity: 0.7 },
-            labelBgPadding: [4,2],
+            // Removed labelStyle, labelBgStyle, labelBgPadding from here
           }}
-          selectNodesOnDrag={false} // To make selection more explicit
-          multiSelectionKeyCode={null} // Disable multi-selection for simplicity
+          selectNodesOnDrag={false}
+          multiSelectionKeyCode={null} 
           nodesDraggable={true}
         >
           <Controls className="[&_button]:bg-card [&_button]:border-border [&_button:hover]:bg-muted [&_svg]:fill-foreground" />
@@ -256,7 +251,6 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           />
         </ReactFlow>
       </div>
-    // </ReactFlowProvider> // REMOVED from here
   );
 });
 
