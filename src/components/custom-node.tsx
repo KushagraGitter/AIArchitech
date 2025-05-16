@@ -23,10 +23,10 @@ export function CustomNode({ data, selected }: NodeProps<{ label: string; iconNa
   const IconComponent = getIconComponent(data.iconName);
 
   return (
-    <Card 
+    <Card
       className={`w-40 shadow-lg border-2 rounded-lg transition-all duration-150 ease-in-out ${selected ? 'border-primary scale-105 shadow-2xl' : 'border-border hover:shadow-xl'}`}
     >
-      <CardHeader className="p-3 flex flex-row items-center space-x-2 bg-card rounded-t-md">
+      <CardHeader className={`p-3 flex flex-row items-center space-x-2 bg-card`}>
         <IconComponent className={`h-6 w-6 shrink-0 ${selected ? 'text-primary' : 'text-muted-foreground'}`} />
         <CardTitle className={`text-sm font-semibold truncate ${selected ? 'text-primary' : 'text-card-foreground'}`}>{data.label}</CardTitle>
       </CardHeader>
