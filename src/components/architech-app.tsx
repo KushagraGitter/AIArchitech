@@ -15,7 +15,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText } from 'lucide-react';
+import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus } from 'lucide-react';
 
 import {
   Sidebar,
@@ -40,6 +40,9 @@ import type { EvaluateSystemDesignInput, EvaluateSystemDesignOutput } from '@/ai
 import { evaluateSystemDesign } from '@/ai/flows/evaluate-system-design';
 import { Separator } from './ui/separator';
 import { ThemeToggleButton } from './theme-toggle-button';
+import { ChatBotWindow, type ChatMessage } from '@/components/chat-bot-window';
+import type { InterviewBotInput } from '@/ai/flows/interview-bot-flow';
+import { interviewBot } from '@/ai/flows/interview-bot-flow';
 
 
 const formSchema = z.object({
@@ -55,7 +58,7 @@ export const designComponents: ComponentConfig[] = [
     initialProperties: { title: "Note", content: "Enter your text here..." },
     configurableProperties: [
       { id: 'title', label: 'Title', type: 'text' },
-      { id: 'content', label: 'Content', type: 'textarea' }, // Using textarea type
+      { id: 'content', label: 'Content', type: 'textarea' }, 
     ]
   },
   {
@@ -219,9 +222,9 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
       { id: 'chat_chatsvc_1', type: 'custom', position: { x: 450, y: 200 }, data: { label: 'Chat Service', iconName: 'MessageSquare', properties: designComponents.find(c => c.name === "Chat Service")?.initialProperties || {} } },
       { id: 'chat_ws_lb_1', type: 'custom', position: { x: 250, y: 350 }, data: { label: 'Load Balancer (WS)', iconName: 'Shuffle', properties: {...(designComponents.find(c => c.name === "Load Balancer")?.initialProperties || {}), type: "Network LB"} } },
       { id: 'chat_ws_server_1', type: 'custom', position: { x: 450, y: 350 }, data: { label: 'WebSocket Server', iconName: 'ServerCog', properties: {protocol: "WSS", framework: "Socket.IO/SignalR", connections: "1M+"} } }, 
-      { id: 'chat_msgdb_1', type: 'custom', position: { x: 650, y: 200 }, data: { label: 'Message Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Cassandra", consistency: "Eventual (for messages)", purpose: "Stores chat messages, read-heavy for history"} } },
-      { id: 'chat_userdb_1', type: 'custom', position: { x: 650, y: -50 }, data: { label: 'User Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "PostgreSQL", role: "primary", purpose: "User accounts, profiles, contacts"} } },
-      { id: 'chat_cache_1', type: 'custom', position: { x: 650, y: 350 }, data: { label: 'Presence Cache', iconName: 'Zap', properties: {...(designComponents.find(c => c.name === "Cache")?.initialProperties || {}), type: "Redis", use: "User presence, Session data, Typing indicators"} } },
+      { id: 'chat_msgdb_1', type: 'custom', position: { x: 650, y: 200 }, data: { label: 'Message Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Cassandra", consistency: "Eventual (for messages)", custom: {purpose: "Stores chat messages, read-heavy for history"}} } },
+      { id: 'chat_userdb_1', type: 'custom', position: { x: 650, y: -50 }, data: { label: 'User Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "PostgreSQL", role: "primary", custom: {purpose: "User accounts, profiles, contacts"}} } },
+      { id: 'chat_cache_1', type: 'custom', position: { x: 650, y: 350 }, data: { label: 'Presence Cache', iconName: 'Zap', properties: {...(designComponents.find(c => c.name === "Cache")?.initialProperties || {}), type: "Redis", custom: {use: "User presence, Session data, Typing indicators"}} } },
     ],
     edges: [
       { id: 'chat_e_client_lb', source: 'chat_client_1', target: 'chat_lb_1', label: 'HTTP/S API Calls', animated: true, style: { stroke: 'hsl(var(--primary))' } },
@@ -244,8 +247,8 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
       { id: 'tiny_client_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'User Browser', iconName: 'Smartphone', properties: designComponents.find(c => c.name === "Client Device")?.initialProperties || {} } },
       { id: 'tiny_apigw_1', type: 'custom', position: { x: 250, y: 150 }, data: { label: 'API Gateway', iconName: 'Waypoints', properties: {...(designComponents.find(c => c.name === "API Gateway")?.initialProperties || {}), rateLimit: "High for reads, Moderate for writes"} } },
       { id: 'tiny_urlsvc_1', type: 'custom', position: { x: 450, y: 150 }, data: { label: 'URL Shortener Service', iconName: 'Link2', properties: designComponents.find(c => c.name === "URL Shortener Service")?.initialProperties || {} } },
-      { id: 'tiny_kvdb_1', type: 'custom', position: { x: 650, y: 150 }, data: { label: 'Key-Value Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Redis (as DB)", role: "standalone", consistency: "Eventual (acceptable for counters)", purpose: "Stores short_url -> long_url mapping"} } },
-      { id: 'tiny_cache_1', type: 'custom', position: { x: 450, y: 300 }, data: { label: 'Hot URL Cache', iconName: 'Zap', properties: {...(designComponents.find(c => c.name === "Cache")?.initialProperties || {}), type: "Redis", use: "Frequently accessed short URLs", pattern: "Cache-Aside"} } },
+      { id: 'tiny_kvdb_1', type: 'custom', position: { x: 650, y: 150 }, data: { label: 'Key-Value Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Redis (as DB)", role: "standalone", consistency: "Eventual (acceptable for counters)", custom: {purpose: "Stores short_url -> long_url mapping"} } } },
+      { id: 'tiny_cache_1', type: 'custom', position: { x: 450, y: 300 }, data: { label: 'Hot URL Cache', iconName: 'Zap', properties: {...(designComponents.find(c => c.name === "Cache")?.initialProperties || {}), type: "Redis", custom: {use: "Frequently accessed short URLs", pattern: "Cache-Aside"}} } },
     ],
     edges: [
       { id: 'tiny_e_client_apigw', source: 'tiny_client_1', target: 'tiny_apigw_1', label: 'Shorten/Redirect Req', animated: true, style: { stroke: 'hsl(var(--primary))' } },
@@ -280,8 +283,8 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
       { id: 'mq_queue_1', type: 'custom', position: { x: 250, y: 150 }, data: { label: 'Message Queue', iconName: 'GitFork', properties: designComponents.find(c => c.name === "Message Queue")?.initialProperties || {} } },
       { id: 'mq_consumer1_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'Consumer (Notifications)', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Notification Sending", processing_logic: "Send email/SMS"}} } },
       { id: 'mq_consumer2_1', type: 'custom', position: { x: 450, y: 250 }, data: { label: 'Consumer (Inventory)', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Inventory Update", processing_logic: "Decrement stock count"}} } },
-      { id: 'mq_db_notify_1', type: 'custom', position: { x: 650, y: 50 }, data: { label: 'Notification Log DB', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "MongoDB", use: "Notification Logs", custom: {access_pattern: "Write-heavy, append-only"}} } },
-      { id: 'mq_db_inventory_1', type: 'custom', position: { x: 650, y: 250 }, data: { label: 'Inventory DB', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "MySQL", use: "Product Inventory", custom: {access_pattern: "Transactional updates"}} } },
+      { id: 'mq_db_notify_1', type: 'custom', position: { x: 650, y: 50 }, data: { label: 'Notification Log DB', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "MongoDB", custom: {use: "Notification Logs", access_pattern: "Write-heavy, append-only"}} } },
+      { id: 'mq_db_inventory_1', type: 'custom', position: { x: 650, y: 250 }, data: { label: 'Inventory DB', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "MySQL", custom: {use: "Product Inventory", access_pattern: "Transactional updates"}} } },
     ],
     edges: [
       { id: 'mq_e_producer_queue', source: 'mq_producer_1', target: 'mq_queue_1', label: 'Publishes Message (OrderEvent)', animated: true, style: { stroke: 'hsl(var(--primary))' } },
@@ -302,7 +305,10 @@ function AppContent() {
   const { state: sidebarState } = useSidebar();
   const canvasRef = useRef<DesignCanvasHandles>(null);
 
-  // Form is no longer directly used for sidebar inputs for requirements/BOTE
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isBotLoadingResponse, setIsBotLoadingResponse] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {},
@@ -347,64 +353,63 @@ function AppContent() {
   
   const selectedComponentConfig = selectedNode ? designComponents.find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName || c.name === selectedNode.data.label.replace(/ \(.+\)$/, '')) : undefined;
 
+  const extractContextFromDiagram = () => {
+    let designDiagramJson = JSON.stringify({ nodes: [], edges: [] });
+    let extractedRequirements = "";
+    let extractedBoteCalculations = "";
 
-  const onSubmit: SubmitHandler<FormValues> = async (_formData) => { // formData is no longer directly used
+    if (canvasRef.current) {
+      const diagramString = canvasRef.current.getDiagramJson();
+      designDiagramJson = diagramString;
+      const diagram = JSON.parse(diagramString) as { nodes: Node<NodeData>[], edges: Edge[] };
+      
+      const requirementsNotes: string[] = [];
+      const boteNotes: string[] = [];
+
+      diagram.nodes.forEach(node => {
+        if (node.data.label === "Info Note" && node.data.properties) {
+          const title = (node.data.properties.title || "").toLowerCase();
+          const content = node.data.properties.content || "";
+          if (title.includes("requirement")) {
+            requirementsNotes.push(content);
+          } else if (title.includes("bote") || title.includes("calculation")) {
+            boteNotes.push(content);
+          } else {
+            if(!title.includes("bote") && !title.includes("calculation")){
+               requirementsNotes.push(content);
+            }
+          }
+        }
+      });
+      extractedRequirements = requirementsNotes.join("\n\n---\n\n");
+      extractedBoteCalculations = boteNotes.join("\n\n---\n\n");
+
+      if (!extractedRequirements && requirementsNotes.length === 0 && diagram.nodes.some(n => n.data.label === "Info Note")) {
+        const allNotesContent = diagram.nodes
+          .filter(node => node.data.label === "Info Note" && node.data.properties?.content)
+          .map(node => node.data.properties.content as string)
+          .join("\n\n---\n\n");
+        if(allNotesContent) extractedRequirements = allNotesContent;
+      }
+       if (!extractedRequirements) {
+         extractedRequirements = "No feature requirements provided via Info Notes on the canvas.";
+       }
+    }
+    return { designDiagramJson, extractedRequirements, extractedBoteCalculations };
+  };
+
+  const onSubmit: SubmitHandler<FormValues> = async (_formData) => {
     setIsLoading(true);
     setAiFeedback(null);
     setSelectedNode(null); 
 
     try {
-      let designDiagramJson = JSON.stringify({ nodes: [], edges: [] });
-      let extractedRequirements = "";
-      let extractedBoteCalculations = "";
-
-      if (canvasRef.current) {
-        const diagramString = canvasRef.current.getDiagramJson();
-        designDiagramJson = diagramString;
-        const diagram = JSON.parse(diagramString) as { nodes: Node<NodeData>[], edges: Edge[] };
-        
-        const requirementsNotes: string[] = [];
-        const boteNotes: string[] = [];
-
-        diagram.nodes.forEach(node => {
-          if (node.data.label === "Info Note" && node.data.properties) {
-            const title = (node.data.properties.title || "").toLowerCase();
-            const content = node.data.properties.content || "";
-            if (title.includes("requirement")) {
-              requirementsNotes.push(content);
-            } else if (title.includes("bote") || title.includes("calculation")) {
-              boteNotes.push(content);
-            } else {
-              // Default to requirements if title is generic like "Note" or empty
-              // or if it doesn't match BOTE keywords specifically.
-              // This can be refined. For now, only explicitly matched titles go to BOTE.
-              if(!title.includes("bote") && !title.includes("calculation")){
-                 requirementsNotes.push(content); // Or handle as general notes if AI supports it
-              }
-            }
-          }
-        });
-        extractedRequirements = requirementsNotes.join("\n\n---\n\n");
-        extractedBoteCalculations = boteNotes.join("\n\n---\n\n");
-
-        if (!extractedRequirements && requirementsNotes.length === 0 && diagram.nodes.some(n => n.data.label === "Info Note")) {
-          // If info notes exist but none are titled for requirements or BOTE, concatenate all as requirements
-          const allNotesContent = diagram.nodes
-            .filter(node => node.data.label === "Info Note" && node.data.properties?.content)
-            .map(node => node.data.properties.content)
-            .join("\n\n---\n\n");
-          if(allNotesContent) extractedRequirements = allNotesContent;
-        }
-         if (!extractedRequirements) {
-           extractedRequirements = "No feature requirements provided via Info Notes on the canvas.";
-         }
-
-      }
+      const { designDiagramJson, extractedRequirements, extractedBoteCalculations } = extractContextFromDiagram();
       
       const evaluationInput: EvaluateSystemDesignInput = {
         requirements: extractedRequirements,
         designDiagram: designDiagramJson,
-        backOfTheEnvelopeCalculations: extractedBoteCalculations || undefined, // Send undefined if empty
+        backOfTheEnvelopeCalculations: extractedBoteCalculations || undefined,
       };
 
       const feedback = await evaluateSystemDesign(evaluationInput);
@@ -427,6 +432,44 @@ function AppContent() {
     }
   };
 
+  const handleSendMessageToBot = async (message: string) => {
+    if (!message.trim()) return;
+
+    const newUserMessage: ChatMessage = { role: 'user', content: message };
+    setChatMessages(prevMessages => [...prevMessages, newUserMessage]);
+    setIsBotLoadingResponse(true);
+
+    try {
+      const { designDiagramJson, extractedRequirements, extractedBoteCalculations } = extractContextFromDiagram();
+      
+      const botInput: InterviewBotInput = {
+        diagramJson: designDiagramJson,
+        featureRequirements: extractedRequirements,
+        boteCalculations: extractedBoteCalculations || undefined,
+        chatHistory: chatMessages.map(msg => ({role: msg.role as 'user' | 'model', content: msg.content})), // ensure role is correctly typed
+        currentUserMessage: message,
+      };
+
+      const response = await interviewBot(botInput);
+      const newAiMessage: ChatMessage = { role: 'model', content: response.aiResponseMessage };
+      setChatMessages(prevMessages => [...prevMessages, newAiMessage]);
+
+    } catch (error) {
+      console.error("Error with Interview Bot:", error);
+      const errorResponseMessage: ChatMessage = { role: 'system', content: `Error: ${error instanceof Error ? error.message : "Could not get response from bot."}` };
+      setChatMessages(prevMessages => [...prevMessages, errorResponseMessage]);
+      toast({
+        title: "Interview Bot Error",
+        description: `Failed to get response from bot. ${error instanceof Error ? error.message : "Check console for details."}`,
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsBotLoadingResponse(false);
+    }
+  };
+
+
   return (
     <>
       <Sidebar variant="inset" collapsible="icon">
@@ -435,7 +478,6 @@ function AppContent() {
         </SidebarHeader>
         <ShadSidebarContent className="p-0">
           <ScrollArea className="h-full">
-            {/* Form element is kept for structure but no longer has direct input fields for requirements/BOTE */}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0">
                 <Accordion type="multiple" defaultValue={["components-accordion", "templates-accordion"]} className="w-full">
@@ -491,9 +533,6 @@ function AppContent() {
                       </SidebarGroup>
                     </AccordionContent>
                   </AccordionItem>
-
-                  {/* Requirements and BOTE Accordions are removed from here */}
-
                 </Accordion>
             
                 <Separator className="my-2" />
@@ -658,6 +697,24 @@ function AppContent() {
           </div>
         </ReactFlowProvider>
       </SidebarInset>
+
+      <Button
+        variant="outline"
+        size="icon"
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary text-primary-foreground hover:bg-primary/90"
+        onClick={() => setIsChatOpen(prev => !prev)}
+        aria-label="Toggle Interview Bot"
+      >
+        <MessageSquarePlus className="h-7 w-7" />
+      </Button>
+
+      <ChatBotWindow
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        messages={chatMessages}
+        onSendMessage={handleSendMessageToBot}
+        isLoadingAiResponse={isBotLoadingResponse}
+      />
     </>
   );
 }
@@ -683,6 +740,3 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
-
-
-    
