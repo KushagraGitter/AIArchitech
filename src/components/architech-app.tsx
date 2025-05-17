@@ -442,11 +442,16 @@ function AppContent() {
     try {
       const { designDiagramJson, extractedRequirements, extractedBoteCalculations } = extractContextFromDiagram();
       
+      // Filter out 'system' messages before sending to AI
+      const validChatHistory = chatMessages
+        .filter(msg => msg.role === 'user' || msg.role === 'model')
+        .map(msg => ({role: msg.role as 'user' | 'model', content: msg.content}));
+
       const botInput: InterviewBotInput = {
         diagramJson: designDiagramJson,
         featureRequirements: extractedRequirements,
         boteCalculations: extractedBoteCalculations || undefined,
-        chatHistory: chatMessages.map(msg => ({role: msg.role as 'user' | 'model', content: msg.content})), // ensure role is correctly typed
+        chatHistory: validChatHistory,
         currentUserMessage: message,
       };
 
@@ -740,3 +745,4 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
+

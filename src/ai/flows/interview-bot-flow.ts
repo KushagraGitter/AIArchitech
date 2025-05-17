@@ -82,10 +82,14 @@ No diagram provided yet. You can start by asking about the requirements.
 {{/if}}
 `,
   // The prompt will be a combination of history and the current user message
-  prompt: `{{#each chatHistory}}
-{{#if (eq role "user")}}User: {{content}}{{/if}}
-{{#if (eq role "model")}}AI: {{content}}{{/if}}
+  // Simplified chat history rendering to avoid complex Handlebars helpers
+  prompt: `Chat History:
+{{#each chatHistory}}
+{{#if (this.role == "user")}}User: {{this.content}}{{/if}}
+{{#if (this.role == "model")}}AI: {{this.content}}{{/if}}
 {{/each}}
+
+Current Interaction:
 User: {{{currentUserMessage}}}
 AI:`,
 });
@@ -103,7 +107,7 @@ const interviewBotFlow = ai.defineFlow(
         diagramJson: input.diagramJson || JSON.stringify({ nodes: [], edges: [] }),
         featureRequirements: input.featureRequirements || "No requirements specified.",
         boteCalculations: input.boteCalculations || "",
-        chatHistory: input.chatHistory || [],
+        chatHistory: input.chatHistory || [], // This will be filtered by the caller if it contains 'system' roles
         currentUserMessage: input.currentUserMessage
     };
     
@@ -114,3 +118,4 @@ const interviewBotFlow = ai.defineFlow(
     return output;
   }
 );
+
