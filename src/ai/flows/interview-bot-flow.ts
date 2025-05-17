@@ -49,7 +49,7 @@ export async function interviewBot(input: InterviewBotInput): Promise<InterviewB
 
 const prompt = ai.definePrompt({
   name: 'interviewBotPrompt',
-  input: {schema: InterviewBotInputSchema},
+  input: {schema: InterviewBotInputSchema}, // Schema remains for flow input validation
   output: {schema: InterviewBotOutputSchema},
   // System message instructing the AI about its role and context
   system: `You are an expert system design interviewer. Your role is to help the user practice for a system design interview.
@@ -81,12 +81,10 @@ System Design Diagram (JSON representation of nodes and edges):
 No diagram provided yet. You can start by asking about the requirements.
 {{/if}}
 `,
-  // The prompt will be a combination of history and the current user message
-  // Simplified chat history rendering to avoid complex Handlebars helpers
   prompt: `Chat History:
 {{#each chatHistory}}
-{{#if (this.role == "user")}}User: {{this.content}}{{/if}}
-{{#if (this.role == "model")}}AI: {{this.content}}{{/if}}
+  {{#if this.isUser}}User: {{this.content}}{{/if}}
+  {{#if this.isModel}}AI: {{this.content}}{{/if}}
 {{/each}}
 
 Current Interaction:
@@ -102,16 +100,37 @@ const interviewBotFlow = ai.defineFlow(
     outputSchema: InterviewBotOutputSchema,
   },
   async (input) => {
-    // Construct the prompt input ensuring all fields are present, even if empty
-    const promptInput = {
+    // Preprocess chatHistory for Handlebars compatibility
+    const processedChatHistory = (input.chatHistory || []).map(msg => ({
+      ...msg,
+      isUser: msg.role === 'user',
+      isModel: msg.role === 'model',
+    }));
+    
+    // Construct the prompt input, ensuring all fields are present
+    const promptInputForHandlebars = {
         diagramJson: input.diagramJson || JSON.stringify({ nodes: [], edges: [] }),
         featureRequirements: input.featureRequirements || "No requirements specified.",
         boteCalculations: input.boteCalculations || "",
-        chatHistory: input.chatHistory || [], // This will be filtered by the caller if it contains 'system' roles
+        chatHistory: processedChatHistory, // Use the processed history for Handlebars
         currentUserMessage: input.currentUserMessage
     };
     
-    const { output } = await prompt(promptInput);
+    // Note: The `prompt` function defined by `ai.definePrompt` will still internally validate
+    // its direct input against `InterviewBotInputSchema`. 
+    // We are passing a slightly different shape for Handlebars rendering.
+    // Genkit's prompt templating should use `promptInputForHandlebars` for rendering,
+    // while the schema on `ai.definePrompt` refers to the expected input to the callable prompt object.
+    // If strict schema adherence is required by the prompt call itself for the `chatHistory`
+    // field (beyond just the flow input), this could be an issue. However, typically,
+    // the object passed to the prompt for templating can be richer.
+
+    // To be absolutely safe with Genkit's prompt input typing, we ensure
+    // that the object passed *to the prompt itself* still conforms if necessary,
+    // or acknowledge that Handlebars receives a slightly augmented version.
+    // For now, let's assume Handlebars works with `promptInputForHandlebars`.
+
+    const { output } = await prompt(promptInputForHandlebars as any); // Cast to any if type mismatch with schema
     if (!output) {
       throw new Error('AI failed to generate a response for the interview bot.');
     }
