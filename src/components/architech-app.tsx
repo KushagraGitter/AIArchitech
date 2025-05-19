@@ -566,12 +566,10 @@ function AppContent() {
         toast({ title: "Load Failed", description: `Design "${designName}" (ID: ${designId}) not found. It might have been deleted.`, variant: "destructive" });
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-        // setCurrentDesignId(null); // Important: clear current design if it's not found
-        // setCurrentDesignName(null);
-        // if (currentDesignId === designId) { // Only clear if it was the one we tried to load
-        //   setCurrentDesignId(null);
-        //   setCurrentDesignName(null);
-        // }
+        if (currentDesignId === designId) { 
+          setCurrentDesignId(null);
+          setCurrentDesignName(null);
+        }
       }
     } catch (error) {
       console.error("Error loading design:", error);
@@ -579,19 +577,19 @@ function AppContent() {
       toast({ title: "Load Error", description: `Could not load design "${designName}". ${errorMessage}`, variant: "destructive" });
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-      // if (currentDesignId === designId) {
-      //    setCurrentDesignId(null);
-      //    setCurrentDesignName(null);
-      // }
+      if (currentDesignId === designId) {
+         setCurrentDesignId(null);
+         setCurrentDesignName(null);
+      }
     } finally {
       setIsLoadingDesigns(false);
     }
   }, [currentUser, toast, currentDesignId]);
 
 
-  const handleOpenNewDesignDialog = useCallback((isInitialPrompt = false) => {
+  const handleOpenNewDesignDialog = useCallback(() => {
     setNewDesignNameInput(''); 
-    if (!isInitialPrompt && !currentUser) {
+    if (!currentUser) {
         toast({
             title: "Login Required",
             description: "Please log in to create and save new designs.",
@@ -610,6 +608,7 @@ function AppContent() {
       const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
 
+      // Guard against 'null' strings or empty strings being treated as valid IDs/Names
       const isValidStoredId = typeof storedActiveDesignId === 'string' && storedActiveDesignId.trim() !== '' && storedActiveDesignId !== 'null';
       const isValidStoredName = typeof storedActiveDesignName === 'string' && storedActiveDesignName.trim() !== '' && storedActiveDesignName !== 'null';
       
@@ -617,20 +616,23 @@ function AppContent() {
         if (currentDesignId !== storedActiveDesignId) {
           // console.log(`Restoring active design from localStorage: ID=${storedActiveDesignId}`);
           handleLoadDesign(storedActiveDesignId!, storedActiveDesignName!);
-        } else {
-          // console.log(`Active design ${currentDesignId} from localStorage is already current. No load needed.`);
         }
       } else {
         // No valid design in localStorage.
-        // If there's also no currentDesignId set (e.g., app just loaded, or previous load failed and cleared it)
-        // then it's appropriate to prompt for a new design.
-        if (!currentDesignId) {
-          // console.log(`No valid stored design and no currentDesignId. Prompting for new design.`);
-          handleOpenNewDesignDialog(true);
+        // If no current design ID is active (e.g. after a failed load, or fresh login with no local history)
+        // load the default notes. The user can then explicitly create a new named design.
+        if (!currentDesignId && canvasRef.current) {
+          // console.log(`No valid stored design and no currentDesignId. Loading default notes. User: ${currentUser.uid}`);
+          canvasRef.current.loadTemplate(createDefaultNotes(), []);
+          // Ensure currentDesignId and currentDesignName are null for this untitled state
+          // This prevents the "My Designs" list from incorrectly highlighting this as an active design.
+          // And ensures that a "Save" action would require a new name if this state persists.
+          if (currentDesignId !== null) setCurrentDesignId(null);
+          if (currentDesignName !== null) setCurrentDesignName(null);
         }
       }
     } else {
-      // User logged out or not logged in
+      // User logged out or not logged in: Clear all session-specific state
       setCurrentDesignId(null);
       setCurrentDesignName(null); 
       setUserDesigns([]);
@@ -644,8 +646,7 @@ function AppContent() {
       setSelectedNode(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, currentDesignId]); // Key dependencies that trigger re-evaluation of active design state
-  // fetchUserDesigns, handleLoadDesign, handleOpenNewDesignDialog are memoized with useCallback
+  }, [currentUser, currentDesignId]); // fetchUserDesigns and handleLoadDesign are memoized via useCallback
 
 
   const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
@@ -668,7 +669,7 @@ function AppContent() {
     }
   };
 
-  const handleNewDesign = () => {
+  const handleNewDesign = () => { // This is now only called by the button
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to create a new design.", variant: "destructive" });
       return;
@@ -1251,11 +1252,6 @@ function AppContent() {
       {isNewDesignDialogOpen && (
         <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
             if (!isOpen && !currentDesignId && currentUser) { 
-                // If dialog is closed (e.g. by pressing Esc or clicking X)
-                // AND no design ID is active (meaning it was an initial prompt or a cancelled "New Design" action)
-                // AND a user is logged in (to avoid this for logged-out default state)
-                // We should ensure a sensible default state rather than an empty one or error.
-                setCurrentDesignName('Untitled Design'); 
                 if (canvasRef.current) {
                     canvasRef.current.loadTemplate(createDefaultNotes(), []);
                 }
@@ -1318,3 +1314,4 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
+
