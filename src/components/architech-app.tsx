@@ -597,9 +597,15 @@ function AppContent() {
       const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
 
       if (storedActiveDesignId && storedActiveDesignName) {
-        handleLoadDesign(storedActiveDesignId, storedActiveDesignName);
-      } else if (!currentDesignId) {
-        // Only prompt for new design if no active design from local storage and no current design already set
+        // If there's an active design in local storage AND it's not already the current one, load it.
+        // This prevents re-loading if the effect re-runs due to currentDesignId being set by this very logic.
+        if (currentDesignId !== storedActiveDesignId) {
+          handleLoadDesign(storedActiveDesignId, storedActiveDesignName);
+        }
+      } else if (!currentDesignId) { 
+        // Only prompt for new design if:
+        // 1. No active design in local storage.
+        // 2. AND no currentDesignId is set (e.g., from a previous action in this session like confirming a new design).
         handleOpenNewDesignDialog(true); 
       }
     } else {
@@ -616,6 +622,7 @@ function AppContent() {
       setChatMessages([]);
       setSelectedNode(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, fetchUserDesigns, handleLoadDesign, handleOpenNewDesignDialog, currentDesignId]);
 
 
@@ -701,13 +708,11 @@ function AppContent() {
 
     try {
       const designRef = doc(db, 'designs', currentDesignId);
-      const currentDocSnap = await getDoc(designRef); // Check if doc exists
+      const currentDocSnap = await getDoc(designRef); 
       
       if (!currentDocSnap.exists()) {
-        // Document doesn't exist, so it's a new save, add createdAt
         await setDoc(designRef, { ...designData, createdAt: serverTimestamp() });
       } else {
-        // Document exists, just update (merge will handle updatedAt)
         await setDoc(designRef, designData, { merge: true }); 
       }
 
