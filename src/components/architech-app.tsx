@@ -18,7 +18,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Form, FormControl, FormField, FormItem, FormLabel as ShadFormLabel, FormMessage } from '@/components/ui/form'; // Renamed FormLabel to avoid conflict
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, Pencil } from 'lucide-react';
+import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, LogOut, UserCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 import {
   Sidebar,
@@ -46,12 +48,20 @@ import { ThemeToggleButton } from './theme-toggle-button';
 import { ChatBotWindow, type ChatMessage } from '@/components/chat-bot-window';
 import type { InterviewBotInput } from '@/ai/flows/interview-bot-flow';
 import { interviewBot } from '@/ai/flows/interview-bot-flow';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 const formSchema = z.object({
   // These fields will be populated from canvas nodes now
 });
 type FormValues = z.infer<typeof formSchema>;
+
+const authFormSchema = z.object({
+  email: z.string().email({ message: "Invalid email address." }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+});
+type AuthFormValues = z.infer<typeof authFormSchema>;
+
 
 export const designComponents: ComponentConfig[] = [
   {
@@ -312,9 +322,9 @@ const createDefaultNotes = (): Node<NodeData>[] => {
         label: 'Info Note',
         iconName: infoNoteConfig.iconName,
         properties: {
-          ...infoNoteConfig.initialProperties,
+          ...(infoNoteConfig.initialProperties || {}),
           title: 'Feature Requirements',
-          content: '- Specify functional requirements (e.g., user actions, core features).\n- Define non-functional requirements (e.g., scalability targets like 1M DAU, availability like 99.99%, latency constraints like p99 < 200ms, security considerations).',
+          content: '- Define functional requirements (e.g., user actions, core features).\n- Define non-functional requirements (e.g., scalability targets like 1M DAU, availability like 99.99%, latency constraints like p99 < 200ms, security considerations).',
         },
       },
     },
@@ -326,7 +336,7 @@ const createDefaultNotes = (): Node<NodeData>[] => {
         label: 'Info Note',
         iconName: infoNoteConfig.iconName,
         properties: {
-          ...infoNoteConfig.initialProperties,
+          ...(infoNoteConfig.initialProperties || {}),
           title: 'BOTE Calculations',
           content: '- Estimate QPS (Queries Per Second - read/write breakdown).\n- Calculate storage needs (e.g., per user, total data size).\n- Project data growth rate.\n- Assess bandwidth requirements (ingress/egress).\n- Estimate number of servers needed for key components.',
         },
@@ -334,6 +344,98 @@ const createDefaultNotes = (): Node<NodeData>[] => {
     },
   ];
 };
+
+
+function AuthSection() {
+  const { signup, login, error: authError, loading: authLoading, clearError } = useAuth();
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  
+  const authForm = useForm<AuthFormValues>({
+    resolver: zodResolver(authFormSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  const handleAuthSubmit = async (values: AuthFormValues) => {
+    clearError();
+    if (isLoginMode) {
+      await login(values.email, values.password);
+    } else {
+      await signup(values.email, values.password);
+    }
+    // User state will update via onAuthStateChanged in AuthContext
+    // No need to redirect here, ArchitechApp will re-render
+  };
+
+  useEffect(() => {
+    // Clear form errors and auth error when switching modes
+    authForm.reset();
+    clearError();
+  }, [isLoginMode, authForm, clearError]);
+
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+      <Card className="w-full max-w-md shadow-2xl">
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-4">
+            <Logo collapsed={false} />
+          </div>
+          <CardTitle className="text-2xl">{isLoginMode ? "Welcome Back!" : "Create Account"}</CardTitle>
+          <CardDescription>
+            {isLoginMode ? "Sign in to continue to Architech AI." : "Sign up to start designing."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...authForm}>
+            <form onSubmit={authForm.handleSubmit(handleAuthSubmit)} className="space-y-6">
+              <FormField
+                control={authForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <ShadFormLabel>Email</ShadFormLabel>
+                    <FormControl>
+                      <Input placeholder="you@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={authForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <ShadFormLabel>Password</ShadFormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {authError && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Authentication Error</AlertTitle>
+                  <AlertDescription>{authError}</AlertDescription>
+                </Alert>
+              )}
+              <Button type="submit" className="w-full" disabled={authLoading}>
+                {authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (isLoginMode ? "Login" : "Sign Up")}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+        <CardFooter className="flex flex-col items-center">
+          <Button variant="link" onClick={() => setIsLoginMode(!isLoginMode)} className="text-sm">
+            {isLoginMode ? "Don't have an account? Sign Up" : "Already have an account? Login"}
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
 
 
 function AppContent() {
@@ -353,6 +455,8 @@ function AppContent() {
   const [currentDesignName, setCurrentDesignName] = useState<string>('Untitled Design');
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
 
+  const { currentUser, logout, loading: authLoading } = useAuth();
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -360,13 +464,11 @@ function AppContent() {
   });
 
   useEffect(() => {
-    // Initialize with a default design name or load from somewhere
-    if (!currentDesignId) {
-      setCurrentDesignId(crypto.randomUUID());
-      // Optionally, load default notes for the very first load
-      // handleNewDesign(true); // Pass a flag to indicate initial load
+    if (!currentDesignId && currentUser) { // Only create new design ID if user is logged in
+       // On first load or after login, if no design is active, prompt for a new one
+      handleOpenNewDesignDialog(true); // Pass a flag to indicate initial/auto-prompt
     }
-  }, [currentDesignId]);
+  }, [currentUser, currentDesignId]);
 
 
   const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
@@ -375,32 +477,39 @@ function AppContent() {
     event.dataTransfer.effectAllowed = 'move';
   };
   
-  const loadTemplate = (nodes: Node<NodeData>[], edges: Edge[]) => {
+  const loadTemplate = (nodes: Node<NodeData>[], edges: Edge[], templateName: string = "Loaded Template") => {
     if (canvasRef.current) {
       canvasRef.current.loadTemplate(nodes, edges);
       setSelectedNode(null); 
       setAiFeedback(null);
       setChatMessages([]);
-      // Templates might imply a new design context, so maybe update name
-      setCurrentDesignName("Loaded Template"); // Or derive from template name
-      setCurrentDesignId(crypto.randomUUID());
+      setCurrentDesignName(templateName); 
+      setCurrentDesignId(crypto.randomUUID()); // Generate a new ID for this loaded template instance
        toast({
         title: "Template Loaded",
-        description: "The selected template has been loaded onto the canvas.",
+        description: `"${templateName}" has been loaded onto the canvas.`,
         duration: 3000,
       });
     }
   };
 
-  const handleOpenNewDesignDialog = () => {
-    setNewDesignNameInput(''); // Clear previous input
+  const handleOpenNewDesignDialog = (isInitialPrompt = false) => {
+    setNewDesignNameInput(''); 
+    if (!isInitialPrompt && !currentUser) {
+        toast({
+            title: "Login Required",
+            description: "Please log in to create and save new designs.",
+            variant: "destructive"
+        });
+        return;
+    }
     setIsNewDesignDialogOpen(true);
   };
 
   const confirmNewDesign = () => {
     const name = newDesignNameInput.trim() || 'Untitled Design';
     setCurrentDesignName(name);
-    setCurrentDesignId(crypto.randomUUID());
+    setCurrentDesignId(crypto.randomUUID()); // This will be the client-side ID for now
 
     if (canvasRef.current) {
       const defaultNodes = createDefaultNotes();
@@ -411,10 +520,11 @@ function AppContent() {
     setChatMessages([]);
     setIsNewDesignDialogOpen(false);
     toast({
-      title: "New Design Created",
-      description: `Design "${name}" is ready.`,
+      title: "New Design Ready",
+      description: `Design "${name}" has been created.`,
       duration: 3000,
     });
+     // TODO: In the next step, save this new design (name, id, empty diagram) to Firestore for the currentUser
   };
 
 
@@ -487,6 +597,14 @@ function AppContent() {
   };
 
   const onSubmit: SubmitHandler<FormValues> = async (_formData) => {
+    if (!currentUser) {
+        toast({
+            title: "Login Required",
+            description: "Please log in to evaluate designs.",
+            variant: "destructive"
+        });
+        return;
+    }
     setIsLoading(true);
     setAiFeedback(null);
     // setSelectedNode(null); 
@@ -522,6 +640,16 @@ function AppContent() {
 
   const handleSendMessageToBot = async (message: string) => {
     if (!message.trim()) return;
+     if (!currentUser) {
+        toast({
+            title: "Login Required",
+            description: "Please log in to use the Interview Bot.",
+            variant: "destructive"
+        });
+        const systemMessage: ChatMessage = { role: 'system', content: "Please log in to interact with the Interview Bot."};
+        setChatMessages(prev => [...prev, systemMessage]);
+        return;
+    }
 
     const newUserMessage: ChatMessage = { role: 'user', content: message };
     setChatMessages(prevMessages => [...prevMessages, newUserMessage]);
@@ -560,6 +688,32 @@ function AppContent() {
       setIsBotLoadingResponse(false);
     }
   };
+
+  const handleLogout = async () => {
+    await logout();
+    // Clear app specific state on logout
+    setCurrentDesignName("Untitled Design");
+    setCurrentDesignId(null);
+    setNodes([]); // Assuming setNodes is available from useNodesState or similar for React Flow
+    setEdges([]); // Assuming setEdges is available
+    setAiFeedback(null);
+    setChatMessages([]);
+    setSelectedNode(null);
+    toast({ title: "Logged Out", description: "You have been successfully logged out." });
+  };
+
+
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <AuthSection />;
+  }
 
 
   return (
@@ -612,7 +766,7 @@ function AppContent() {
                           {initialTemplates.map((template) => (
                             <SidebarMenuItem key={template.name}>
                               <SidebarMenuButton
-                                onClick={() => loadTemplate(template.nodes, template.edges)}
+                                onClick={() => loadTemplate(template.nodes, template.edges, template.name)}
                                 className="text-sm"
                                 tooltip={`Load ${template.name} template`}
                               >
@@ -629,7 +783,7 @@ function AppContent() {
             
                 <Separator className="my-2" />
                 <SidebarGroup className="p-2 space-y-2">
-                   <Button type="button" variant="outline" className="w-full" onClick={handleOpenNewDesignDialog}>
+                   <Button type="button" variant="outline" className="w-full" onClick={() => handleOpenNewDesignDialog(false)}>
                       <FileText className="mr-2 h-4 w-4" />
                       New Design
                     </Button>
@@ -748,9 +902,19 @@ function AppContent() {
           </ScrollArea>
         </ShadSidebarContent>
         <SidebarFooter className="p-2 border-t border-sidebar-border flex items-center group-data-[collapsible=icon]:justify-center">
-            <span className="text-xs text-muted-foreground flex-grow group-data-[collapsible=icon]:hidden">
-              Architech AI &copy; {new Date().getFullYear()}
-            </span>
+            <div className="flex-grow group-data-[collapsible=icon]:hidden">
+              {currentUser && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <UserCircle className="h-4 w-4"/>
+                  <span className="truncate max-w-[120px]">{currentUser.email}</span>
+                </div>
+              )}
+            </div>
+             {currentUser && (
+              <Button variant="ghost" size="icon" onClick={handleLogout} className="group-data-[collapsible=icon]:ml-0" tooltip="Logout">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            )}
             <ThemeToggleButton />
         </SidebarFooter>
       </Sidebar>
@@ -825,7 +989,10 @@ function AppContent() {
       />
 
       {isNewDesignDialogOpen && (
-        <Dialog open={isNewDesignDialogOpen} onOpenChange={setIsNewDesignDialogOpen}>
+        <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
+            if (!isOpen) setNewDesignNameInput(''); // Clear input if dialog is closed without confirming
+            setIsNewDesignDialogOpen(isOpen);
+        }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Design</DialogTitle>
@@ -862,24 +1029,24 @@ function AppContent() {
 
 export function ArchitechApp() {
   const [isClient, setIsClient] = useState(false);
+  
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  if (!isClient) {
+  // Initial loading state (SSR or before client hydration)
+  // Also covers the AuthProvider's initial loading phase effectively
+  if (!isClient) { 
     return (
         <div className="flex h-screen items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
     );
   }
-
+  
   return (
     <SidebarProvider defaultOpen={true}>
       <AppContent />
     </SidebarProvider>
   );
 }
-
-
-    

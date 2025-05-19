@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'; // Using Inter as a clean sans-serif f
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AuthProvider } from '@/contexts/AuthContext'; // Import AuthProvider
 
 const inter = Inter({
   subsets: ['latin'],
@@ -24,17 +25,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-          storageKey="architech-ai-theme"
-          themes={['light', 'dark', 'system', 'theme-ocean', 'theme-forest']}
-        >
-          {children}
-          <Toaster />
-        </ThemeProvider>
+        <AuthProvider> {/* Wrap ThemeProvider (and thus children) with AuthProvider */}
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+            storageKey="architech-ai-theme"
+            themes={['light', 'dark', 'system', 'theme-ocean', 'theme-forest']}
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
