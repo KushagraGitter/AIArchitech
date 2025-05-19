@@ -161,7 +161,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
       setEdgeLabelInput(edge.label as string || '');
       setIsEdgeDialogVisible(true);
     },
-    [setEdges]
+    [] // Removed setEdges dependency as it's stable if wrapped in useCallback higher up
   );
 
   const handleSaveEdgeLabel = () => {
@@ -198,15 +198,23 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
       setEdges(initialEdges);
       onNodeSelect(null); 
 
-      const maxNodeId = initialNodes.reduce((max, node) => {
-        const num = parseInt(node.id.split('_').pop() || '0');
-        return Math.max(max, isNaN(num) ? 0 : num);
-      }, 0);
-      const maxEdgeId = initialEdges.reduce((max, edge) => {
-        const num = parseInt(edge.id.split('_').pop() || '0');
-        return Math.max(max, isNaN(num) ? 0 : num);
-      }, 0);
-      idCounter = Math.max(maxNodeId, maxEdgeId, idCounter) +1;
+      // Reset idCounter based on the maximum numeric suffix of existing nodes/edges
+      const maxNodeIdSuffix = initialNodes.reduce((max, node) => {
+        const parts = node.id.split('_');
+        const numPart = parts.pop();
+        const num = numPart ? parseInt(numPart, 10) : NaN;
+        return Math.max(max, isNaN(num) ? -1 : num); // Use -1 if no numeric part or NaN
+      }, -1);
+      
+      const maxEdgeIdSuffix = initialEdges.reduce((max, edge) => {
+        const parts = edge.id.split('_');
+        const numPart = parts.pop();
+        const num = numPart ? parseInt(numPart, 10) : NaN;
+        return Math.max(max, isNaN(num) ? -1 : num);
+      }, -1);
+
+      idCounter = Math.max(maxNodeIdSuffix, maxEdgeIdSuffix, -1) + 1;
+
 
       setTimeout(() => { 
         if (reactFlowInstance) {

@@ -296,6 +296,42 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
   }
 ];
 
+const createDefaultNotes = (): Node<NodeData>[] => {
+  const infoNoteConfig = designComponents.find(c => c.name === "Info Note");
+  if (!infoNoteConfig) return []; // Should not happen
+
+  return [
+    {
+      id: 'default_req_note_0',
+      type: 'custom',
+      position: { x: 50, y: 50 },
+      data: {
+        label: 'Info Note',
+        iconName: infoNoteConfig.iconName,
+        properties: {
+          ...infoNoteConfig.initialProperties,
+          title: 'Feature Requirements',
+          content: '- Describe user stories.\n- Define functional requirements.\n- Specify non-functional requirements (scalability, availability, latency, etc.).',
+        },
+      },
+    },
+    {
+      id: 'default_bote_note_0',
+      type: 'custom',
+      position: { x: 50, y: 250 }, // Adjusted y position for spacing
+      data: {
+        label: 'Info Note',
+        iconName: infoNoteConfig.iconName,
+        properties: {
+          ...infoNoteConfig.initialProperties,
+          title: 'BOTE Calculations',
+          content: '- Estimate QPS (Queries Per Second).\n- Calculate storage needs.\n- Project data growth.\n- Assess bandwidth requirements.',
+        },
+      },
+    },
+  ];
+};
+
 
 function AppContent() {
   const [isLoading, setIsLoading] = useState(false);
@@ -327,6 +363,21 @@ function AppContent() {
        toast({
         title: "Template Loaded",
         description: "The selected template has been loaded onto the canvas.",
+        duration: 3000,
+      });
+    }
+  };
+
+  const handleNewDesign = () => {
+    if (canvasRef.current) {
+      const defaultNodes = createDefaultNotes();
+      canvasRef.current.loadTemplate(defaultNodes, []);
+      setSelectedNode(null);
+      setAiFeedback(null);
+      setChatMessages([]);
+      toast({
+        title: "New Design Created",
+        description: "The canvas has been cleared and default notes added.",
         duration: 3000,
       });
     }
@@ -375,7 +426,8 @@ function AppContent() {
           } else if (title.includes("bote") || title.includes("calculation")) {
             boteNotes.push(content);
           } else {
-            if(!title.includes("bote") && !title.includes("calculation")){
+            // If not explicitly titled for BOTE/Calc, assume general requirement if not empty.
+            if(!title.includes("bote") && !title.includes("calculation") && content.trim() !== ""){
                requirementsNotes.push(content);
             }
           }
@@ -384,9 +436,16 @@ function AppContent() {
       extractedRequirements = requirementsNotes.join("\n\n---\n\n");
       extractedBoteCalculations = boteNotes.join("\n\n---\n\n");
 
-      if (!extractedRequirements && requirementsNotes.length === 0 && diagram.nodes.some(n => n.data.label === "Info Note")) {
+      // Fallback if no specifically "requirement" titled notes, but other info notes exist
+      if (!extractedRequirements && diagram.nodes.some(n => n.data.label === "Info Note")) {
         const allNotesContent = diagram.nodes
-          .filter(node => node.data.label === "Info Note" && node.data.properties?.content)
+          .filter(node => {
+            const title = (node.data.properties?.title || "").toLowerCase();
+            return node.data.label === "Info Note" && 
+                   node.data.properties?.content && 
+                   !title.includes("bote") && 
+                   !title.includes("calculation");
+          })
           .map(node => node.data.properties.content as string)
           .join("\n\n---\n\n");
         if(allNotesContent) extractedRequirements = allNotesContent;
@@ -401,7 +460,7 @@ function AppContent() {
   const onSubmit: SubmitHandler<FormValues> = async (_formData) => {
     setIsLoading(true);
     setAiFeedback(null);
-    setSelectedNode(null); 
+    // setSelectedNode(null); // Keep node selected after evaluation for context
 
     try {
       const { designDiagramJson, extractedRequirements, extractedBoteCalculations } = extractContextFromDiagram();
@@ -442,7 +501,6 @@ function AppContent() {
     try {
       const { designDiagramJson, extractedRequirements, extractedBoteCalculations } = extractContextFromDiagram();
       
-      // Filter out 'system' messages before sending to AI
       const validChatHistory = chatMessages
         .filter(msg => msg.role === 'user' || msg.role === 'model')
         .map(msg => ({role: msg.role as 'user' | 'model', content: msg.content}));
@@ -541,8 +599,12 @@ function AppContent() {
                 </Accordion>
             
                 <Separator className="my-2" />
-                <SidebarGroup className="p-2">
-                  <div className="px-2 mt-2">
+                <SidebarGroup className="p-2 space-y-2">
+                   <Button type="button" variant="outline" className="w-full" onClick={handleNewDesign}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      New Design
+                    </Button>
+                  <div className="mt-0"> 
                     <Button type="submit" className="w-full" disabled={isLoading}>
                       {isLoading ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
