@@ -311,7 +311,7 @@ const createDefaultNotes = (): Node<NodeData>[] => {
         properties: {
           ...infoNoteConfig.initialProperties,
           title: 'Feature Requirements',
-          content: '- Describe user stories.\n- Define functional requirements.\n- Specify non-functional requirements (scalability, availability, latency, etc.).',
+          content: '- Define functional requirements.\n- Specify non-functional requirements (scalability, availability, latency, etc.).',
         },
       },
     },
