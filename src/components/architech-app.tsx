@@ -10,12 +10,15 @@ import { ReactFlowProvider } from 'reactflow';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel as ShadFormLabel, FormMessage } from '@/components/ui/form'; // Renamed FormLabel to avoid conflict
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus } from 'lucide-react';
+import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, Pencil } from 'lucide-react';
 
 import {
   Sidebar,
@@ -298,7 +301,7 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
 
 const createDefaultNotes = (): Node<NodeData>[] => {
   const infoNoteConfig = designComponents.find(c => c.name === "Info Note");
-  if (!infoNoteConfig) return []; // Should not happen
+  if (!infoNoteConfig) return []; 
 
   return [
     {
@@ -311,21 +314,21 @@ const createDefaultNotes = (): Node<NodeData>[] => {
         properties: {
           ...infoNoteConfig.initialProperties,
           title: 'Feature Requirements',
-          content: '- Define functional requirements.\n- Specify non-functional requirements (scalability, availability, latency, etc.).',
+          content: '- Specify functional requirements (e.g., user actions, core features).\n- Define non-functional requirements (e.g., scalability targets like 1M DAU, availability like 99.99%, latency constraints like p99 < 200ms, security considerations).',
         },
       },
     },
     {
       id: 'default_bote_note_0',
       type: 'custom',
-      position: { x: 50, y: 250 }, // Adjusted y position for spacing
+      position: { x: 50, y: 250 }, 
       data: {
         label: 'Info Note',
         iconName: infoNoteConfig.iconName,
         properties: {
           ...infoNoteConfig.initialProperties,
           title: 'BOTE Calculations',
-          content: '- Estimate QPS (Queries Per Second).\n- Calculate storage needs.\n- Project data growth.\n- Assess bandwidth requirements.',
+          content: '- Estimate QPS (Queries Per Second - read/write breakdown).\n- Calculate storage needs (e.g., per user, total data size).\n- Project data growth rate.\n- Assess bandwidth requirements (ingress/egress).\n- Estimate number of servers needed for key components.',
         },
       },
     },
@@ -338,17 +341,33 @@ function AppContent() {
   const [aiFeedback, setAiFeedback] = useState<EvaluateSystemDesignOutput | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
   const { toast } = useToast();
-  const { state: sidebarState } = useSidebar();
+  const { state: sidebarState, isMobile } = useSidebar();
   const canvasRef = useRef<DesignCanvasHandles>(null);
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isBotLoadingResponse, setIsBotLoadingResponse] = useState(false);
 
+  const [isNewDesignDialogOpen, setIsNewDesignDialogOpen] = useState(false);
+  const [newDesignNameInput, setNewDesignNameInput] = useState('');
+  const [currentDesignName, setCurrentDesignName] = useState<string>('Untitled Design');
+  const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
+
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {},
   });
+
+  useEffect(() => {
+    // Initialize with a default design name or load from somewhere
+    if (!currentDesignId) {
+      setCurrentDesignId(crypto.randomUUID());
+      // Optionally, load default notes for the very first load
+      // handleNewDesign(true); // Pass a flag to indicate initial load
+    }
+  }, [currentDesignId]);
+
 
   const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
     const nodeData = { name: componentName, iconName: iconName, properties: initialProperties || {} };
@@ -360,6 +379,11 @@ function AppContent() {
     if (canvasRef.current) {
       canvasRef.current.loadTemplate(nodes, edges);
       setSelectedNode(null); 
+      setAiFeedback(null);
+      setChatMessages([]);
+      // Templates might imply a new design context, so maybe update name
+      setCurrentDesignName("Loaded Template"); // Or derive from template name
+      setCurrentDesignId(crypto.randomUUID());
        toast({
         title: "Template Loaded",
         description: "The selected template has been loaded onto the canvas.",
@@ -368,20 +392,31 @@ function AppContent() {
     }
   };
 
-  const handleNewDesign = () => {
+  const handleOpenNewDesignDialog = () => {
+    setNewDesignNameInput(''); // Clear previous input
+    setIsNewDesignDialogOpen(true);
+  };
+
+  const confirmNewDesign = () => {
+    const name = newDesignNameInput.trim() || 'Untitled Design';
+    setCurrentDesignName(name);
+    setCurrentDesignId(crypto.randomUUID());
+
     if (canvasRef.current) {
       const defaultNodes = createDefaultNotes();
       canvasRef.current.loadTemplate(defaultNodes, []);
-      setSelectedNode(null);
-      setAiFeedback(null);
-      setChatMessages([]);
-      toast({
-        title: "New Design Created",
-        description: "The canvas has been cleared and default notes added.",
-        duration: 3000,
-      });
     }
+    setSelectedNode(null);
+    setAiFeedback(null);
+    setChatMessages([]);
+    setIsNewDesignDialogOpen(false);
+    toast({
+      title: "New Design Created",
+      description: `Design "${name}" is ready.`,
+      duration: 3000,
+    });
   };
+
 
   const handleNodeSelect = useCallback((node: Node<NodeData> | null) => {
     setSelectedNode(node);
@@ -425,18 +460,12 @@ function AppContent() {
             requirementsNotes.push(content);
           } else if (title.includes("bote") || title.includes("calculation")) {
             boteNotes.push(content);
-          } else {
-            // If not explicitly titled for BOTE/Calc, assume general requirement if not empty.
-            if(!title.includes("bote") && !title.includes("calculation") && content.trim() !== ""){
-               requirementsNotes.push(content);
-            }
           }
         }
       });
       extractedRequirements = requirementsNotes.join("\n\n---\n\n");
       extractedBoteCalculations = boteNotes.join("\n\n---\n\n");
 
-      // Fallback if no specifically "requirement" titled notes, but other info notes exist
       if (!extractedRequirements && diagram.nodes.some(n => n.data.label === "Info Note")) {
         const allNotesContent = diagram.nodes
           .filter(node => {
@@ -460,7 +489,7 @@ function AppContent() {
   const onSubmit: SubmitHandler<FormValues> = async (_formData) => {
     setIsLoading(true);
     setAiFeedback(null);
-    // setSelectedNode(null); // Keep node selected after evaluation for context
+    // setSelectedNode(null); 
 
     try {
       const { designDiagramJson, extractedRequirements, extractedBoteCalculations } = extractContextFromDiagram();
@@ -600,7 +629,7 @@ function AppContent() {
             
                 <Separator className="my-2" />
                 <SidebarGroup className="p-2 space-y-2">
-                   <Button type="button" variant="outline" className="w-full" onClick={handleNewDesign}>
+                   <Button type="button" variant="outline" className="w-full" onClick={handleOpenNewDesignDialog}>
                       <FileText className="mr-2 h-4 w-4" />
                       New Design
                     </Button>
@@ -726,13 +755,25 @@ function AppContent() {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col"> 
-        <header className="h-14 flex items-center px-4 border-b md:hidden">
-            <SidebarTrigger />
-            <span className="ml-2 font-semibold text-lg text-primary">Architech AI</span>
+        <header className="h-14 flex items-center justify-between px-4 border-b md:hidden">
+            <div className="flex items-center">
+                <SidebarTrigger />
+                <span className="ml-2 font-semibold text-lg text-primary">Architech AI</span>
+            </div>
+            {isMobile && currentDesignName && (
+                <span className="text-sm text-muted-foreground truncate">{currentDesignName}</span>
+            )}
         </header>
+        {!isMobile && currentDesignName && (
+             <div className="h-12 flex items-center px-6 border-b bg-background">
+                <h2 className="text-lg font-semibold text-foreground">{currentDesignName}</h2>
+                {/* Potential place for a rename button in the future */}
+                {/* <Button variant="ghost" size="icon" className="ml-2"><Pencil className="h-4 w-4" /></Button> */}
+            </div>
+        )}
         <ReactFlowProvider>
           <div className="flex flex-1 min-h-0"> 
-            <main className="flex-1 overflow-auto p-0 h-[calc(100vh-3.5rem)] md:h-screen">
+            <main className={`flex-1 overflow-auto p-0 ${!isMobile && currentDesignName ? 'h-[calc(100vh-3.5rem-3rem)]' : 'h-[calc(100vh-3.5rem)]'} md:h-screen`}>
                 <DesignCanvas ref={canvasRef} onNodeSelect={handleNodeSelect} />
             </main>
             {selectedNode && selectedComponentConfig && (
@@ -782,6 +823,38 @@ function AppContent() {
         onSendMessage={handleSendMessageToBot}
         isLoadingAiResponse={isBotLoadingResponse}
       />
+
+      {isNewDesignDialogOpen && (
+        <Dialog open={isNewDesignDialogOpen} onOpenChange={setIsNewDesignDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Design</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-2">
+              <Label htmlFor="newDesignName" className="text-sm font-medium">
+                Design Name
+              </Label>
+              <Input
+                id="newDesignName"
+                value={newDesignNameInput}
+                onChange={(e) => setNewDesignNameInput(e.target.value)}
+                placeholder="Enter a name for your system design"
+                onKeyDown={(e) => e.key === 'Enter' && newDesignNameInput.trim() && confirmNewDesign()}
+              />
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button type="button" onClick={confirmNewDesign} disabled={!newDesignNameInput.trim()}>
+                Create Design
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
@@ -808,3 +881,5 @@ export function ArchitechApp() {
   );
 }
 
+
+    
