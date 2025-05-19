@@ -81,6 +81,9 @@ interface UserDesign {
   updatedAt: Timestamp; 
 }
 
+const LOCAL_STORAGE_ACTIVE_DESIGN_ID = 'architechAiActiveDesignId';
+const LOCAL_STORAGE_ACTIVE_DESIGN_NAME = 'architechAiActiveDesignName';
+
 
 export const designComponents: ComponentConfig[] = [
   {
@@ -390,7 +393,7 @@ function AuthSection() {
 
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+    <div className="w-full flex flex-col items-center justify-center min-h-screen bg-background p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -470,7 +473,7 @@ function AppContent() {
 
   const [isNewDesignDialogOpen, setIsNewDesignDialogOpen] = useState(false);
   const [newDesignNameInput, setNewDesignNameInput] = useState('');
-  const [currentDesignName, setCurrentDesignName] = useState<string>('Untitled Design');
+  const [currentDesignName, setCurrentDesignName] = useState<string | null>(null);
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const [userDesigns, setUserDesigns] = useState<UserDesign[]>([]);
 
@@ -529,16 +532,83 @@ function AppContent() {
     }
   }, [currentUser, toast]);
 
+
+  const handleLoadDesign = useCallback(async (designId: string, designName: string) => {
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "Please log in to load designs.", variant: "destructive" });
+      return;
+    }
+    if (!canvasRef.current) {
+      toast({ title: "Error", description: "Canvas not available.", variant: "destructive" });
+      return;
+    }
+    setIsLoadingDesigns(true); 
+    try {
+      const designRef = doc(db, 'designs', designId);
+      const docSnap = await getDoc(designRef);
+
+      if (docSnap.exists()) {
+        const designData = docSnap.data();
+        const diagram = JSON.parse(designData.diagramJson) as { nodes: Node<NodeData>[], edges: Edge[] };
+        canvasRef.current.loadTemplate(diagram.nodes, diagram.edges);
+        
+        setCurrentDesignId(designId);
+        setCurrentDesignName(designName);
+        localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, designId);
+        localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, designName);
+        setSelectedNode(null);
+        setAiFeedback(null);
+        setChatMessages([]);
+        toast({ title: "Design Loaded", description: `"${designName}" is now active.` });
+      } else {
+        toast({ title: "Load Failed", description: "Design not found.", variant: "destructive" });
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+      }
+    } catch (error) {
+      console.error("Error loading design:", error);
+      toast({ title: "Load Error", description: `Could not load design. ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
+      localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+      localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+    } finally {
+      setIsLoadingDesigns(false);
+    }
+  }, [currentUser, toast]);
+
+
+  const handleOpenNewDesignDialog = useCallback((isInitialPrompt = false) => {
+    setNewDesignNameInput(''); 
+    if (!isInitialPrompt && !currentUser) {
+        toast({
+            title: "Login Required",
+            description: "Please log in to create and save new designs.",
+            variant: "destructive"
+        });
+        return;
+    }
+    setIsNewDesignDialogOpen(true);
+  },[currentUser, toast]);
+
+
   useEffect(() => {
     if (currentUser) {
       fetchUserDesigns();
-      if (!currentDesignId) {
+      const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+      const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+
+      if (storedActiveDesignId && storedActiveDesignName) {
+        handleLoadDesign(storedActiveDesignId, storedActiveDesignName);
+      } else if (!currentDesignId) {
+        // Only prompt for new design if no active design from local storage and no current design already set
         handleOpenNewDesignDialog(true); 
       }
     } else {
+      // User logged out or not logged in
       setCurrentDesignId(null);
       setCurrentDesignName('Untitled Design');
       setUserDesigns([]);
+      localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+      localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
       if (canvasRef.current) {
         canvasRef.current.loadTemplate(createDefaultNotes(), []);
       }
@@ -546,7 +616,8 @@ function AppContent() {
       setChatMessages([]);
       setSelectedNode(null);
     }
-  }, [currentUser, fetchUserDesigns]);
+  }, [currentUser, fetchUserDesigns, handleLoadDesign, handleOpenNewDesignDialog, currentDesignId]);
+
 
 
   const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
@@ -561,34 +632,33 @@ function AppContent() {
       setSelectedNode(null); 
       setAiFeedback(null);
       setChatMessages([]);
-      setCurrentDesignName(templateName); 
-      setCurrentDesignId(crypto.randomUUID()); 
        toast({
         title: "Template Loaded",
         description: `"${templateName}" has been loaded onto the canvas.`,
         duration: 3000,
       });
+      // For templates, don't automatically set currentDesignName/Id or local storage
+      // This allows users to load a template into an existing or new named design
     }
   };
 
-  const handleOpenNewDesignDialog = (isInitialPrompt = false) => {
-    setNewDesignNameInput(''); 
-    if (!isInitialPrompt && !currentUser) {
-        toast({
-            title: "Login Required",
-            description: "Please log in to create and save new designs.",
-            variant: "destructive"
-        });
-        return;
+  const handleNewDesign = () => {
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "Please log in to create a new design.", variant: "destructive" });
+      return;
     }
-    setIsNewDesignDialogOpen(true);
+    handleOpenNewDesignDialog();
   };
+
 
   const confirmNewDesign = () => {
     const name = newDesignNameInput.trim() || 'Untitled Design';
     setCurrentDesignName(name);
     const newId = crypto.randomUUID(); 
     setCurrentDesignId(newId);
+
+    localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, newId);
+    localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, name);
 
     if (canvasRef.current) {
       const defaultNodes = createDefaultNotes();
@@ -598,6 +668,7 @@ function AppContent() {
     setAiFeedback(null);
     setChatMessages([]);
     setIsNewDesignDialogOpen(false);
+    setNewDesignNameInput('');
     toast({
       title: "New Design Ready",
       description: `Design "${name}" has been created. Save it to keep your work.`,
@@ -630,12 +701,16 @@ function AppContent() {
 
     try {
       const designRef = doc(db, 'designs', currentDesignId);
-      const currentDoc = await getDoc(designRef);
-      if (!currentDoc.exists()) {
+      const currentDocSnap = await getDoc(designRef); // Check if doc exists
+      
+      if (!currentDocSnap.exists()) {
+        // Document doesn't exist, so it's a new save, add createdAt
         await setDoc(designRef, { ...designData, createdAt: serverTimestamp() });
       } else {
+        // Document exists, just update (merge will handle updatedAt)
         await setDoc(designRef, designData, { merge: true }); 
       }
+
       toast({ title: "Design Saved!", description: `"${currentDesignName}" has been saved successfully.` });
       fetchUserDesigns(); 
     } catch (error) {
@@ -646,42 +721,6 @@ function AppContent() {
     }
   };
   
-  const handleLoadDesign = async (designId: string, designName: string) => {
-    if (!currentUser) {
-      toast({ title: "Login Required", description: "Please log in to load designs.", variant: "destructive" });
-      return;
-    }
-    if (!canvasRef.current) {
-      toast({ title: "Error", description: "Canvas not available.", variant: "destructive" });
-      return;
-    }
-    setIsLoadingDesigns(true); 
-    try {
-      const designRef = doc(db, 'designs', designId);
-      const docSnap = await getDoc(designRef);
-
-      if (docSnap.exists()) {
-        const designData = docSnap.data();
-        const diagram = JSON.parse(designData.diagramJson) as { nodes: Node<NodeData>[], edges: Edge[] };
-        canvasRef.current.loadTemplate(diagram.nodes, diagram.edges);
-        
-        setCurrentDesignId(designId);
-        setCurrentDesignName(designName);
-        setSelectedNode(null);
-        setAiFeedback(null);
-        setChatMessages([]);
-        toast({ title: "Design Loaded", description: `"${designName}" is now active.` });
-      } else {
-        toast({ title: "Load Failed", description: "Design not found.", variant: "destructive" });
-      }
-    } catch (error) {
-      console.error("Error loading design:", error);
-      toast({ title: "Load Error", description: `Could not load design. ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
-    } finally {
-      setIsLoadingDesigns(false);
-    }
-  };
-
 
   const handleNodeSelect = useCallback((node: Node<NodeData> | null) => {
     setSelectedNode(node);
@@ -845,6 +884,16 @@ function AppContent() {
 
   const handleLogout = async () => {
     await logout();
+    setCurrentDesignId(null);
+    setCurrentDesignName('Untitled Design');
+    localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+    localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+    if (canvasRef.current) {
+      canvasRef.current.loadTemplate(createDefaultNotes(), []);
+    }
+    setAiFeedback(null);
+    setChatMessages([]);
+    setSelectedNode(null);
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
   };
 
@@ -964,7 +1013,7 @@ function AppContent() {
             
                 <Separator className="my-2" />
                 <SidebarGroup className="p-2 space-y-2">
-                   <Button type="button" variant="outline" className="w-full" onClick={() => handleOpenNewDesignDialog(false)}>
+                   <Button type="button" variant="outline" className="w-full" onClick={handleNewDesign}>
                       <FileText className="mr-2 h-4 w-4" />
                       New Design
                     </Button>
@@ -1180,6 +1229,12 @@ function AppContent() {
             if (!isOpen && !newDesignNameInput && currentDesignId === null && currentUser) {
               // If dialog is closed without confirming, and it was an initial auto-prompt,
               // re-prompt or set a default. For now, let's allow closing.
+            }
+            if (!isOpen && !currentDesignId) { // if closed and no design active (e.g. initial prompt was cancelled)
+                setCurrentDesignName('Untitled Design'); // Keep a default name
+                if (canvasRef.current) {
+                    canvasRef.current.loadTemplate(createDefaultNotes(), []);
+                }
             }
             if (!isOpen) setNewDesignNameInput(''); 
             setIsNewDesignDialogOpen(isOpen);
