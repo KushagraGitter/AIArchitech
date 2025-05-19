@@ -492,34 +492,24 @@ function AppContent() {
     }
     setIsLoadingDesigns(true);
     try {
-      // console.log(`Fetching designs for user: ${currentUser.uid}`);
       const q = query(
         collection(db, 'designs'),
         where('userId', '==', currentUser.uid),
         orderBy('updatedAt', 'desc')
       );
       const querySnapshot = await getDocs(q);
-      
-      // console.log(`Query snapshot empty: ${querySnapshot.empty}, size: ${querySnapshot.size}`);
-
       const designs: UserDesign[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        // console.log(`Fetched doc ${doc.id}:`, data);
         if (data.designName && data.updatedAt) { 
             designs.push({
             id: doc.id,
             name: data.designName,
             updatedAt: data.updatedAt as Timestamp,
             });
-        } else {
-            // console.warn(`Document ${doc.id} is missing designName or updatedAt. Data:`, data);
         }
       });
       setUserDesigns(designs);
-      // if (querySnapshot.empty) {
-        // console.log("No designs found for this user in Firestore.");
-      // }
     } catch (error) {
       console.error("Error fetching user designs:", error);
       toast({
@@ -533,15 +523,16 @@ function AppContent() {
   }, [currentUser, toast]);
 
 
-  const handleLoadDesign = useCallback(async (designId: string, designName: string) => {
+ const handleLoadDesign = useCallback(async (designId: string, designName: string): Promise<boolean> => {
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to load designs.", variant: "destructive" });
-      return;
+      return false;
     }
     if (!canvasRef.current) {
       toast({ title: "Error", description: "Canvas not available.", variant: "destructive" });
-      return;
+      return false;
     }
+    
     // console.log(`Attempting to load design: ID=${designId}, Name=${designName}`);
     setIsLoadingDesigns(true); 
     try {
@@ -562,32 +553,41 @@ function AppContent() {
         setChatMessages([]);
         toast({ title: "Design Loaded", description: `"${designName}" is now active.` });
         // console.log(`Successfully loaded design: ID=${designId}`);
+        setIsLoadingDesigns(false);
+        return true; // Load success
       } else {
         toast({ title: "Load Failed", description: `Design "${designName}" (ID: ${designId}) not found. It might have been deleted.`, variant: "destructive" });
-        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-        if (currentDesignId === designId) { 
-          setCurrentDesignId(null);
-          setCurrentDesignName(null);
+        if (localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID) === designId) {
+          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
         }
+        // If this was the design we were trying to load, ensure current state reflects failure to load anything.
+        // This helps the useEffect hook decide to load default notes.
+        setCurrentDesignId(null); 
+        setCurrentDesignName(null);
+        setIsLoadingDesigns(false);
+        return false; // Load failed (not found)
       }
     } catch (error) {
       console.error("Error loading design:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({ title: "Load Error", description: `Could not load design "${designName}". ${errorMessage}`, variant: "destructive" });
-      localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-      localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-      if (currentDesignId === designId) {
-         setCurrentDesignId(null);
-         setCurrentDesignName(null);
+      
+      // If the failed design was the one in localStorage, clear localStorage
+      if (localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID) === designId) {
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
       }
-    } finally {
+      // And ensure current state reflects failure to load anything.
+      setCurrentDesignId(null); 
+      setCurrentDesignName(null);
       setIsLoadingDesigns(false);
+      return false; // Load failed (exception)
     }
-  }, [currentUser, toast, currentDesignId]);
+  }, [currentUser, toast]);
 
 
-  const handleOpenNewDesignDialog = useCallback(() => {
+  const handleOpenNewDesignDialog = useCallback((promptForName = false) => {
     setNewDesignNameInput(''); 
     if (!currentUser) {
         toast({
@@ -597,42 +597,27 @@ function AppContent() {
         });
         return;
     }
-    setIsNewDesignDialogOpen(true);
+    if (promptForName) {
+        setIsNewDesignDialogOpen(true);
+    } else { 
+        // This case might be if we want to silently create a new unsaved design without prompt
+        // For now, "New Design" button will always trigger the dialog.
+        const newId = crypto.randomUUID();
+        setCurrentDesignId(newId);
+        setCurrentDesignName("Untitled Design"); // Default name
+        localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, newId);
+        localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, "Untitled Design");
+        if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
+        setSelectedNode(null);
+        setAiFeedback(null);
+        setChatMessages([]);
+    }
   },[currentUser, toast]);
 
 
-  useEffect(() => {
-    if (currentUser) {
-      fetchUserDesigns(); // Always fetch the list of designs for "My Designs"
-
-      const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-      const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-
-      // Guard against 'null' strings or empty strings being treated as valid IDs/Names
-      const isValidStoredId = typeof storedActiveDesignId === 'string' && storedActiveDesignId.trim() !== '' && storedActiveDesignId !== 'null';
-      const isValidStoredName = typeof storedActiveDesignName === 'string' && storedActiveDesignName.trim() !== '' && storedActiveDesignName !== 'null';
-      
-      if (isValidStoredId && isValidStoredName) {
-        if (currentDesignId !== storedActiveDesignId) {
-          // console.log(`Restoring active design from localStorage: ID=${storedActiveDesignId}`);
-          handleLoadDesign(storedActiveDesignId!, storedActiveDesignName!);
-        }
-      } else {
-        // No valid design in localStorage.
-        // If no current design ID is active (e.g. after a failed load, or fresh login with no local history)
-        // load the default notes. The user can then explicitly create a new named design.
-        if (!currentDesignId && canvasRef.current) {
-          // console.log(`No valid stored design and no currentDesignId. Loading default notes. User: ${currentUser.uid}`);
-          canvasRef.current.loadTemplate(createDefaultNotes(), []);
-          // Ensure currentDesignId and currentDesignName are null for this untitled state
-          // This prevents the "My Designs" list from incorrectly highlighting this as an active design.
-          // And ensures that a "Save" action would require a new name if this state persists.
-          if (currentDesignId !== null) setCurrentDesignId(null);
-          if (currentDesignName !== null) setCurrentDesignName(null);
-        }
-      }
-    } else {
-      // User logged out or not logged in: Clear all session-specific state
+ useEffect(() => {
+    if (!currentUser) {
+      // User logged out or not yet loaded
       setCurrentDesignId(null);
       setCurrentDesignName(null); 
       setUserDesigns([]);
@@ -644,9 +629,49 @@ function AppContent() {
       setAiFeedback(null);
       setChatMessages([]);
       setSelectedNode(null);
+      return; // Exit early if no user
     }
+
+    // User is logged in
+    fetchUserDesigns(); // Fetch the list of designs for "My Designs" panel
+
+    const initializeActiveDesign = async () => {
+      const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+      const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+
+      const isValidStoredId = typeof storedActiveDesignId === 'string' && storedActiveDesignId.trim() !== '' && storedActiveDesignId !== 'null';
+      const isValidStoredName = typeof storedActiveDesignName === 'string' && storedActiveDesignName.trim() !== '' && storedActiveDesignName !== 'null';
+
+      let designLoadedFromStorage = false;
+      if (isValidStoredId && isValidStoredName) {
+        // Only attempt to load if currentDesignId isn't already set to this ID
+        // This prevents re-loading if the effect runs for other reasons while this design is active
+        if (currentDesignId !== storedActiveDesignId) {
+          // console.log(`Attempting to restore design from localStorage: ${storedActiveDesignId}`);
+          designLoadedFromStorage = await handleLoadDesign(storedActiveDesignId!, storedActiveDesignName!);
+        } else {
+          // console.log(`Design ${currentDesignId} is already active, no need to restore from localStorage.`);
+          designLoadedFromStorage = true; // Considered "loaded" as it's already active
+        }
+      }
+
+      // If no design was successfully loaded from storage (or storage was empty)
+      // AND no design is currently active (currentDesignId is null), then load default notes.
+      if (!designLoadedFromStorage && !currentDesignId) {
+        // console.log("No design loaded from storage and no current design active. Loading default notes.");
+        if (canvasRef.current) {
+          canvasRef.current.loadTemplate(createDefaultNotes(), []);
+        }
+        setCurrentDesignId(null); 
+        setCurrentDesignName(null); 
+      }
+    };
+
+    initializeActiveDesign();
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, currentDesignId]); // fetchUserDesigns and handleLoadDesign are memoized via useCallback
+  }, [currentUser]); // Run only when currentUser changes (login/logout).
+                     // fetchUserDesigns and handleLoadDesign are memoized with useCallback.
 
 
   const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
@@ -669,20 +694,21 @@ function AppContent() {
     }
   };
 
-  const handleNewDesign = () => { // This is now only called by the button
+  const handleNewDesignButtonClick = () => { 
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to create a new design.", variant: "destructive" });
       return;
     }
-    handleOpenNewDesignDialog();
+    handleOpenNewDesignDialog(true); // Always prompt for name when button is clicked
   };
 
 
   const confirmNewDesign = () => {
     const name = newDesignNameInput.trim() || 'Untitled Design';
-    setCurrentDesignName(name);
     const newId = crypto.randomUUID(); 
+    
     setCurrentDesignId(newId);
+    setCurrentDesignName(name);
 
     localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, newId);
     localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, name);
@@ -909,17 +935,7 @@ function AppContent() {
 
   const handleLogout = async () => {
     await logout();
-    setCurrentDesignId(null);
-    setCurrentDesignName(null);
-    localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-    localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-    if (canvasRef.current) {
-      canvasRef.current.loadTemplate(createDefaultNotes(), []);
-    }
-    setAiFeedback(null);
-    setChatMessages([]);
-    setSelectedNode(null);
-    toast({ title: "Logged Out", description: "You have been successfully logged out." });
+    // State clearing is now handled by the useEffect hook listening to currentUser
   };
 
 
@@ -1020,6 +1036,7 @@ function AppContent() {
                                   onClick={() => handleLoadDesign(design.id, design.name)}
                                   className="text-sm"
                                   tooltip={`Load "${design.name}"`}
+                                  data-active={currentDesignId === design.id}
                                 >
                                   <FileText className="h-4 w-4" />
                                   <span>{design.name}</span>
@@ -1038,7 +1055,7 @@ function AppContent() {
             
                 <Separator className="my-2" />
                 <SidebarGroup className="p-2 space-y-2">
-                   <Button type="button" variant="outline" className="w-full" onClick={handleNewDesign}>
+                   <Button type="button" variant="outline" className="w-full" onClick={handleNewDesignButtonClick}>
                       <FileText className="mr-2 h-4 w-4" />
                       New Design
                     </Button>
@@ -1251,10 +1268,12 @@ function AppContent() {
 
       {isNewDesignDialogOpen && (
         <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen && !currentDesignId && currentUser) { 
-                if (canvasRef.current) {
-                    canvasRef.current.loadTemplate(createDefaultNotes(), []);
-                }
+            // If dialog is closed by 'Cancel' or clicking outside, and no current design is active,
+            // ensure default notes are loaded. confirmNewDesign handles success cases.
+            if (!isOpen && !currentDesignId && currentUser && canvasRef.current) { 
+                canvasRef.current.loadTemplate(createDefaultNotes(), []);
+                setCurrentDesignId(null);
+                setCurrentDesignName(null);
             }
             if (!isOpen) setNewDesignNameInput(''); 
             setIsNewDesignDialogOpen(isOpen);
