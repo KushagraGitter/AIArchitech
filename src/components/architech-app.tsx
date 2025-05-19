@@ -7,6 +7,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { Node, Edge } from 'reactflow';
 import { ReactFlowProvider } from 'reactflow'; 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+  orderBy,
+  Timestamp,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase'; // Firestore instance
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,7 +31,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Form, FormControl, FormField, FormItem, FormLabel as ShadFormLabel, FormMessage } from '@/components/ui/form'; // Renamed FormLabel to avoid conflict
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, LogOut, UserCircle, AlertCircle } from 'lucide-react';
+import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, LogOut, UserCircle, AlertCircle, SaveIcon, ListChecks } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
@@ -61,6 +74,12 @@ const authFormSchema = z.object({
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 });
 type AuthFormValues = z.infer<typeof authFormSchema>;
+
+interface UserDesign {
+  id: string;
+  name: string;
+  updatedAt: Timestamp; // Or Date, depending on how you store/retrieve
+}
 
 
 export const designComponents: ComponentConfig[] = [
@@ -362,12 +381,9 @@ function AuthSection() {
     } else {
       await signup(values.email, values.password);
     }
-    // User state will update via onAuthStateChanged in AuthContext
-    // No need to redirect here, ArchitechApp will re-render
   };
 
   useEffect(() => {
-    // Clear form errors and auth error when switching modes
     authForm.reset();
     clearError();
   }, [isLoginMode, authForm, clearError]);
@@ -439,7 +455,9 @@ function AuthSection() {
 
 
 function AppContent() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingEvaluation, setIsLoadingEvaluation] = useState(false);
+  const [isSavingDesign, setIsSavingDesign] = useState(false);
+  const [isLoadingDesigns, setIsLoadingDesigns] = useState(false);
   const [aiFeedback, setAiFeedback] = useState<EvaluateSystemDesignOutput | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
   const { toast } = useToast();
@@ -454,6 +472,7 @@ function AppContent() {
   const [newDesignNameInput, setNewDesignNameInput] = useState('');
   const [currentDesignName, setCurrentDesignName] = useState<string>('Untitled Design');
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
+  const [userDesigns, setUserDesigns] = useState<UserDesign[]>([]);
 
   const { currentUser, logout, loading: authLoading } = useAuth();
 
@@ -463,12 +482,61 @@ function AppContent() {
     defaultValues: {},
   });
 
-  useEffect(() => {
-    if (!currentDesignId && currentUser) { // Only create new design ID if user is logged in
-       // On first load or after login, if no design is active, prompt for a new one
-      handleOpenNewDesignDialog(true); // Pass a flag to indicate initial/auto-prompt
+  const fetchUserDesigns = useCallback(async () => {
+    if (!currentUser) {
+      setUserDesigns([]);
+      return;
     }
-  }, [currentUser, currentDesignId]);
+    setIsLoadingDesigns(true);
+    try {
+      const q = query(
+        collection(db, 'designs'),
+        where('userId', '==', currentUser.uid),
+        orderBy('updatedAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      const designs: UserDesign[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        designs.push({
+          id: doc.id,
+          name: data.designName,
+          updatedAt: data.updatedAt as Timestamp, // Assuming updatedAt is a Firestore Timestamp
+        });
+      });
+      setUserDesigns(designs);
+    } catch (error) {
+      console.error("Error fetching user designs:", error);
+      toast({
+        title: "Error Fetching Designs",
+        description: "Could not load your saved designs.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingDesigns(false);
+    }
+  }, [currentUser, toast]);
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchUserDesigns();
+      // If no design is active upon login, prompt or load last, or set to new
+      if (!currentDesignId) {
+        handleOpenNewDesignDialog(true); // true indicates it's an initial auto-prompt
+      }
+    } else {
+      // Clear design-specific state if user logs out
+      setCurrentDesignId(null);
+      setCurrentDesignName('Untitled Design');
+      setUserDesigns([]);
+      if (canvasRef.current) {
+        canvasRef.current.loadTemplate(createDefaultNotes(), []);
+      }
+      setAiFeedback(null);
+      setChatMessages([]);
+      setSelectedNode(null);
+    }
+  }, [currentUser, fetchUserDesigns]);
 
 
   const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
@@ -484,7 +552,7 @@ function AppContent() {
       setAiFeedback(null);
       setChatMessages([]);
       setCurrentDesignName(templateName); 
-      setCurrentDesignId(crypto.randomUUID()); // Generate a new ID for this loaded template instance
+      setCurrentDesignId(crypto.randomUUID()); 
        toast({
         title: "Template Loaded",
         description: `"${templateName}" has been loaded onto the canvas.`,
@@ -509,7 +577,8 @@ function AppContent() {
   const confirmNewDesign = () => {
     const name = newDesignNameInput.trim() || 'Untitled Design';
     setCurrentDesignName(name);
-    setCurrentDesignId(crypto.randomUUID()); // This will be the client-side ID for now
+    const newId = crypto.randomUUID(); // Generate new ID
+    setCurrentDesignId(newId);
 
     if (canvasRef.current) {
       const defaultNodes = createDefaultNotes();
@@ -521,10 +590,87 @@ function AppContent() {
     setIsNewDesignDialogOpen(false);
     toast({
       title: "New Design Ready",
-      description: `Design "${name}" has been created.`,
+      description: `Design "${name}" has been created. Save it to keep your work.`,
       duration: 3000,
     });
-     // TODO: In the next step, save this new design (name, id, empty diagram) to Firestore for the currentUser
+  };
+
+  const handleSaveDesign = async () => {
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "Please log in to save your design.", variant: "destructive" });
+      return;
+    }
+    if (!currentDesignId || !currentDesignName) {
+      toast({ title: "Cannot Save", description: "No active design to save. Create a new design first.", variant: "destructive" });
+      return;
+    }
+    if (!canvasRef.current) {
+      toast({ title: "Error", description: "Canvas not available.", variant: "destructive" });
+      return;
+    }
+
+    setIsSavingDesign(true);
+    const diagramJson = canvasRef.current.getDiagramJson();
+    const designData = {
+      userId: currentUser.uid,
+      designName: currentDesignName,
+      diagramJson: diagramJson,
+      updatedAt: serverTimestamp(),
+    };
+
+    try {
+      const designRef = doc(db, 'designs', currentDesignId);
+      // Check if it's a new save to add createdAt
+      const currentDoc = await getDoc(designRef);
+      if (!currentDoc.exists()) {
+        await setDoc(designRef, { ...designData, createdAt: serverTimestamp() });
+      } else {
+        await setDoc(designRef, designData, { merge: true }); // Merge true for updates
+      }
+      toast({ title: "Design Saved!", description: `"${currentDesignName}" has been saved successfully.` });
+      fetchUserDesigns(); // Refresh the list of designs
+    } catch (error) {
+      console.error("Error saving design:", error);
+      toast({ title: "Save Failed", description: `Could not save design. ${error instanceof Error ? error.message : ""}`, variant: "destructive" });
+    } finally {
+      setIsSavingDesign(false);
+    }
+  };
+  
+  const handleLoadDesign = async (designId: string, designName: string) => {
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "Please log in to load designs.", variant: "destructive" });
+      return;
+    }
+    if (!canvasRef.current) {
+      toast({ title: "Error", description: "Canvas not available.", variant: "destructive" });
+      return;
+    }
+    setIsLoadingDesigns(true); // Use general loading designs flag or a specific one
+    try {
+      const designRef = doc(db, 'designs', designId);
+      const docSnap = await getDoc(designRef);
+
+      if (docSnap.exists()) {
+        const designData = docSnap.data();
+        const diagram = JSON.parse(designData.diagramJson) as { nodes: Node<NodeData>[], edges: Edge[] };
+        canvasRef.current.loadTemplate(diagram.nodes, diagram.edges);
+        
+        setCurrentDesignId(designId);
+        setCurrentDesignName(designName);
+        setSelectedNode(null);
+        setAiFeedback(null);
+        setChatMessages([]);
+        toast({ title: "Design Loaded", description: `"${designName}" is now active.` });
+      } else {
+        toast({ title: "Load Failed", description: "Design not found.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Error loading design:", error);
+      toast({ title: "Load Error", description: `Could not load design. ${error instanceof Error ? error.message : ""}`, variant: "destructive" });
+    } finally {
+      setIsLoadingDesigns(false);
+    }
   };
 
 
@@ -556,7 +702,7 @@ function AppContent() {
 
     if (canvasRef.current) {
       const diagramString = canvasRef.current.getDiagramJson();
-      designDiagramJson = diagramString;
+      designDiagramJson = diagramString; // The whole diagram string is used
       const diagram = JSON.parse(diagramString) as { nodes: Node<NodeData>[], edges: Edge[] };
       
       const requirementsNotes: string[] = [];
@@ -605,9 +751,8 @@ function AppContent() {
         });
         return;
     }
-    setIsLoading(true);
-    setAiFeedback(null);
-    // setSelectedNode(null); 
+    setIsLoadingEvaluation(true);
+    setAiFeedback(null); 
 
     try {
       const { designDiagramJson, extractedRequirements, extractedBoteCalculations } = extractContextFromDiagram();
@@ -634,7 +779,7 @@ function AppContent() {
         duration: 5000,
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingEvaluation(false);
     }
   };
 
@@ -659,7 +804,7 @@ function AppContent() {
       const { designDiagramJson, extractedRequirements, extractedBoteCalculations } = extractContextFromDiagram();
       
       const validChatHistory = chatMessages
-        .filter(msg => msg.role === 'user' || msg.role === 'model')
+        .filter(msg => msg.role === 'user' || msg.role === 'model') 
         .map(msg => ({role: msg.role as 'user' | 'model', content: msg.content}));
 
       const botInput: InterviewBotInput = {
@@ -691,15 +836,6 @@ function AppContent() {
 
   const handleLogout = async () => {
     await logout();
-    // Clear app specific state on logout
-    setCurrentDesignName("Untitled Design");
-    setCurrentDesignId(null);
-    if (canvasRef.current) { // Use a function to clear nodes/edges if available, otherwise set directly if that's how your state is managed
-        canvasRef.current.loadTemplate([], []); // Assuming loadTemplate can clear with empty arrays
-    }
-    setAiFeedback(null);
-    setChatMessages([]);
-    setSelectedNode(null);
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
   };
 
@@ -727,7 +863,7 @@ function AppContent() {
           <ScrollArea className="h-full">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0">
-                <Accordion type="multiple" defaultValue={["components-accordion", "templates-accordion"]} className="w-full">
+                <Accordion type="multiple" defaultValue={["components-accordion", "templates-accordion", "my-designs-accordion"]} className="w-full">
                   <AccordionItem value="components-accordion" className="border-none">
                     <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
                       <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
@@ -780,6 +916,41 @@ function AppContent() {
                       </SidebarGroup>
                     </AccordionContent>
                   </AccordionItem>
+
+                  <AccordionItem value="my-designs-accordion" className="border-none">
+                    <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
+                      <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
+                        <ListChecks className="h-4 w-4" /> My Designs
+                      </SidebarGroupLabel>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pb-0">
+                      <SidebarGroup className="p-2 pt-0">
+                        {isLoadingDesigns ? (
+                          <div className="flex justify-center items-center p-4">
+                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : userDesigns.length > 0 ? (
+                          <SidebarMenu>
+                            {userDesigns.map((design) => (
+                              <SidebarMenuItem key={design.id}>
+                                <SidebarMenuButton
+                                  onClick={() => handleLoadDesign(design.id, design.name)}
+                                  className="text-sm"
+                                  tooltip={`Load "${design.name}"`}
+                                >
+                                  <FileText className="h-4 w-4" />
+                                  <span>{design.name}</span>
+                                </SidebarMenuButton>
+                              </SidebarMenuItem>
+                            ))}
+                          </SidebarMenu>
+                        ) : (
+                          <p className="p-2 text-xs text-muted-foreground text-center">No saved designs yet. Click "Save Design" to store your current work.</p>
+                        )}
+                      </SidebarGroup>
+                    </AccordionContent>
+                  </AccordionItem>
+
                 </Accordion>
             
                 <Separator className="my-2" />
@@ -788,9 +959,17 @@ function AppContent() {
                       <FileText className="mr-2 h-4 w-4" />
                       New Design
                     </Button>
+                    <Button type="button" variant="outline" className="w-full" onClick={handleSaveDesign} disabled={isSavingDesign || !currentDesignId}>
+                      {isSavingDesign ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <SaveIcon className="mr-2 h-4 w-4" />
+                      )}
+                      Save Design
+                    </Button>
                   <div className="mt-0"> 
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? (
+                    <Button type="submit" className="w-full" disabled={isLoadingEvaluation}>
+                      {isLoadingEvaluation ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
                         <Sparkles className="mr-2 h-4 w-4" />
@@ -802,7 +981,7 @@ function AppContent() {
               </form>
             </Form>
 
-            {isLoading && (
+            {isLoadingEvaluation && (
               <Card className="m-4 shadow-none border-dashed">
                 <CardContent className="p-6 flex flex-col items-center justify-center">
                   <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -811,7 +990,7 @@ function AppContent() {
               </Card>
             )}
 
-            {aiFeedback && !isLoading && (
+            {aiFeedback && !isLoadingEvaluation && (
               <>
               <Separator className="my-2" />
               <SidebarGroup className="p-2">
@@ -931,9 +1110,7 @@ function AppContent() {
         </header>
         {!isMobile && currentDesignName && (
              <div className="h-12 flex items-center px-6 border-b bg-background">
-                <h2 className="text-lg font-semibold text-foreground">{currentDesignName}</h2>
-                {/* Potential place for a rename button in the future */}
-                {/* <Button variant="ghost" size="icon" className="ml-2"><Pencil className="h-4 w-4" /></Button> */}
+                <h2 className="text-lg font-semibold text-foreground">{currentDesignName || "Untitled Design"}</h2>
             </div>
         )}
         <ReactFlowProvider>
@@ -991,7 +1168,13 @@ function AppContent() {
 
       {isNewDesignDialogOpen && (
         <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen) setNewDesignNameInput(''); // Clear input if dialog is closed without confirming
+            if (!isOpen && !newDesignNameInput && currentDesignId === null && currentUser) {
+              // If dialog is closed without confirming, and it was an initial auto-prompt,
+              // re-prompt or set a default. For now, let's allow closing.
+              // Or, if you want to force name on first load:
+              // if (currentUser && !currentDesignId) { setIsNewDesignDialogOpen(true); return; }
+            }
+            if (!isOpen) setNewDesignNameInput(''); 
             setIsNewDesignDialogOpen(isOpen);
         }}>
           <DialogContent>
@@ -1035,8 +1218,6 @@ export function ArchitechApp() {
     setIsClient(true);
   }, []);
 
-  // Initial loading state (SSR or before client hydration)
-  // Also covers the AuthProvider's initial loading phase effectively
   if (!isClient) { 
     return (
         <div className="flex h-screen items-center justify-center">
@@ -1051,5 +1232,3 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
-
-
