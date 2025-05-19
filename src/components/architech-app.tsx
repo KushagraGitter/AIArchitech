@@ -18,7 +18,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Form, FormControl, FormField, FormItem, FormLabel as ShadFormLabel, FormMessage } from '@/components/ui/form'; // Renamed FormLabel to avoid conflict
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, LogOut, UserCircle } from 'lucide-react';
+import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, LogOut, UserCircle, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
@@ -694,8 +694,9 @@ function AppContent() {
     // Clear app specific state on logout
     setCurrentDesignName("Untitled Design");
     setCurrentDesignId(null);
-    setNodes([]); // Assuming setNodes is available from useNodesState or similar for React Flow
-    setEdges([]); // Assuming setEdges is available
+    if (canvasRef.current) { // Use a function to clear nodes/edges if available, otherwise set directly if that's how your state is managed
+        canvasRef.current.loadTemplate([], []); // Assuming loadTemplate can clear with empty arrays
+    }
     setAiFeedback(null);
     setChatMessages([]);
     setSelectedNode(null);
@@ -1050,3 +1051,5 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
+
+
