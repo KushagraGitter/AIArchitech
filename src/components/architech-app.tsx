@@ -78,7 +78,7 @@ type AuthFormValues = z.infer<typeof authFormSchema>;
 interface UserDesign {
   id: string;
   name: string;
-  updatedAt: Timestamp; // Or Date, depending on how you store/retrieve
+  updatedAt: Timestamp; 
 }
 
 
@@ -276,7 +276,7 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
     name: "TinyURL Service",
     nodes: [
       { id: 'tiny_req_1', type: 'custom', position: { x: -150, y: 50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Feature Requirements', content: 'Design a TinyURL-like service. Requirements: Shorten URL, Redirect to original URL, High availability, Low latency reads. Custom short links (optional). Analytics (optional).'} } },
-      { id: 'tiny_client_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'User Browser', iconName: 'Smartphone', properties: designComponents.find(c => c.name === "Client Device")?.initialProperties || {} } },
+      { id: 'tiny_client_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'Client Device', iconName: 'Smartphone', properties: designComponents.find(c => c.name === "Client Device")?.initialProperties || {} } },
       { id: 'tiny_apigw_1', type: 'custom', position: { x: 250, y: 150 }, data: { label: 'API Gateway', iconName: 'Waypoints', properties: {...(designComponents.find(c => c.name === "API Gateway")?.initialProperties || {}), rateLimit: "High for reads, Moderate for writes"} } },
       { id: 'tiny_urlsvc_1', type: 'custom', position: { x: 450, y: 150 }, data: { label: 'URL Shortener Service', iconName: 'Link2', properties: designComponents.find(c => c.name === "URL Shortener Service")?.initialProperties || {} } },
       { id: 'tiny_kvdb_1', type: 'custom', position: { x: 650, y: 150 }, data: { label: 'Key-Value Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Redis (as DB)", role: "standalone", consistency: "Eventual (acceptable for counters)", custom: {purpose: "Stores short_url -> long_url mapping"} } } },
@@ -489,27 +489,39 @@ function AppContent() {
     }
     setIsLoadingDesigns(true);
     try {
+      console.log(`Fetching designs for user: ${currentUser.uid}`);
       const q = query(
         collection(db, 'designs'),
         where('userId', '==', currentUser.uid),
         orderBy('updatedAt', 'desc')
       );
       const querySnapshot = await getDocs(q);
+      
+      console.log(`Query snapshot empty: ${querySnapshot.empty}, size: ${querySnapshot.size}`);
+
       const designs: UserDesign[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        designs.push({
-          id: doc.id,
-          name: data.designName,
-          updatedAt: data.updatedAt as Timestamp, // Assuming updatedAt is a Firestore Timestamp
-        });
+        console.log(`Fetched doc ${doc.id}:`, data);
+        if (data.designName && data.updatedAt) { 
+            designs.push({
+            id: doc.id,
+            name: data.designName,
+            updatedAt: data.updatedAt as Timestamp,
+            });
+        } else {
+            console.warn(`Document ${doc.id} is missing designName or updatedAt. Data:`, data);
+        }
       });
       setUserDesigns(designs);
+      if (querySnapshot.empty) {
+        console.log("No designs found for this user in Firestore.");
+      }
     } catch (error) {
       console.error("Error fetching user designs:", error);
       toast({
         title: "Error Fetching Designs",
-        description: "Could not load your saved designs.",
+        description: `Could not load your saved designs. ${error instanceof Error ? error.message : String(error)}`,
         variant: "destructive",
       });
     } finally {
@@ -520,12 +532,10 @@ function AppContent() {
   useEffect(() => {
     if (currentUser) {
       fetchUserDesigns();
-      // If no design is active upon login, prompt or load last, or set to new
       if (!currentDesignId) {
-        handleOpenNewDesignDialog(true); // true indicates it's an initial auto-prompt
+        handleOpenNewDesignDialog(true); 
       }
     } else {
-      // Clear design-specific state if user logs out
       setCurrentDesignId(null);
       setCurrentDesignName('Untitled Design');
       setUserDesigns([]);
@@ -577,7 +587,7 @@ function AppContent() {
   const confirmNewDesign = () => {
     const name = newDesignNameInput.trim() || 'Untitled Design';
     setCurrentDesignName(name);
-    const newId = crypto.randomUUID(); // Generate new ID
+    const newId = crypto.randomUUID(); 
     setCurrentDesignId(newId);
 
     if (canvasRef.current) {
@@ -620,18 +630,17 @@ function AppContent() {
 
     try {
       const designRef = doc(db, 'designs', currentDesignId);
-      // Check if it's a new save to add createdAt
       const currentDoc = await getDoc(designRef);
       if (!currentDoc.exists()) {
         await setDoc(designRef, { ...designData, createdAt: serverTimestamp() });
       } else {
-        await setDoc(designRef, designData, { merge: true }); // Merge true for updates
+        await setDoc(designRef, designData, { merge: true }); 
       }
       toast({ title: "Design Saved!", description: `"${currentDesignName}" has been saved successfully.` });
-      fetchUserDesigns(); // Refresh the list of designs
+      fetchUserDesigns(); 
     } catch (error) {
       console.error("Error saving design:", error);
-      toast({ title: "Save Failed", description: `Could not save design. ${error instanceof Error ? error.message : ""}`, variant: "destructive" });
+      toast({ title: "Save Failed", description: `Could not save design. ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
     } finally {
       setIsSavingDesign(false);
     }
@@ -646,7 +655,7 @@ function AppContent() {
       toast({ title: "Error", description: "Canvas not available.", variant: "destructive" });
       return;
     }
-    setIsLoadingDesigns(true); // Use general loading designs flag or a specific one
+    setIsLoadingDesigns(true); 
     try {
       const designRef = doc(db, 'designs', designId);
       const docSnap = await getDoc(designRef);
@@ -667,7 +676,7 @@ function AppContent() {
       }
     } catch (error) {
       console.error("Error loading design:", error);
-      toast({ title: "Load Error", description: `Could not load design. ${error instanceof Error ? error.message : ""}`, variant: "destructive" });
+      toast({ title: "Load Error", description: `Could not load design. ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
     } finally {
       setIsLoadingDesigns(false);
     }
@@ -702,7 +711,7 @@ function AppContent() {
 
     if (canvasRef.current) {
       const diagramString = canvasRef.current.getDiagramJson();
-      designDiagramJson = diagramString; // The whole diagram string is used
+      designDiagramJson = diagramString; 
       const diagram = JSON.parse(diagramString) as { nodes: Node<NodeData>[], edges: Edge[] };
       
       const requirementsNotes: string[] = [];
@@ -1171,8 +1180,6 @@ function AppContent() {
             if (!isOpen && !newDesignNameInput && currentDesignId === null && currentUser) {
               // If dialog is closed without confirming, and it was an initial auto-prompt,
               // re-prompt or set a default. For now, let's allow closing.
-              // Or, if you want to force name on first load:
-              // if (currentUser && !currentDesignId) { setIsNewDesignDialogOpen(true); return; }
             }
             if (!isOpen) setNewDesignNameInput(''); 
             setIsNewDesignDialogOpen(isOpen);
@@ -1232,3 +1239,6 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
+
+
+    
