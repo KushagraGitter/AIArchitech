@@ -492,7 +492,7 @@ function AppContent() {
     }
     setIsLoadingDesigns(true);
     try {
-      console.log(`Fetching designs for user: ${currentUser.uid}`);
+      // console.log(`Fetching designs for user: ${currentUser.uid}`);
       const q = query(
         collection(db, 'designs'),
         where('userId', '==', currentUser.uid),
@@ -500,12 +500,12 @@ function AppContent() {
       );
       const querySnapshot = await getDocs(q);
       
-      console.log(`Query snapshot empty: ${querySnapshot.empty}, size: ${querySnapshot.size}`);
+      // console.log(`Query snapshot empty: ${querySnapshot.empty}, size: ${querySnapshot.size}`);
 
       const designs: UserDesign[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        console.log(`Fetched doc ${doc.id}:`, data);
+        // console.log(`Fetched doc ${doc.id}:`, data);
         if (data.designName && data.updatedAt) { 
             designs.push({
             id: doc.id,
@@ -513,13 +513,13 @@ function AppContent() {
             updatedAt: data.updatedAt as Timestamp,
             });
         } else {
-            console.warn(`Document ${doc.id} is missing designName or updatedAt. Data:`, data);
+            // console.warn(`Document ${doc.id} is missing designName or updatedAt. Data:`, data);
         }
       });
       setUserDesigns(designs);
-      if (querySnapshot.empty) {
-        console.log("No designs found for this user in Firestore.");
-      }
+      // if (querySnapshot.empty) {
+        // console.log("No designs found for this user in Firestore.");
+      // }
     } catch (error) {
       console.error("Error fetching user designs:", error);
       toast({
@@ -542,6 +542,7 @@ function AppContent() {
       toast({ title: "Error", description: "Canvas not available.", variant: "destructive" });
       return;
     }
+    // console.log(`Attempting to load design: ID=${designId}, Name=${designName}`);
     setIsLoadingDesigns(true); 
     try {
       const designRef = doc(db, 'designs', designId);
@@ -560,20 +561,32 @@ function AppContent() {
         setAiFeedback(null);
         setChatMessages([]);
         toast({ title: "Design Loaded", description: `"${designName}" is now active.` });
+        // console.log(`Successfully loaded design: ID=${designId}`);
       } else {
-        toast({ title: "Load Failed", description: "Design not found.", variant: "destructive" });
+        toast({ title: "Load Failed", description: `Design "${designName}" (ID: ${designId}) not found. It might have been deleted.`, variant: "destructive" });
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+        // setCurrentDesignId(null); // Important: clear current design if it's not found
+        // setCurrentDesignName(null);
+        // if (currentDesignId === designId) { // Only clear if it was the one we tried to load
+        //   setCurrentDesignId(null);
+        //   setCurrentDesignName(null);
+        // }
       }
     } catch (error) {
       console.error("Error loading design:", error);
-      toast({ title: "Load Error", description: `Could not load design. ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast({ title: "Load Error", description: `Could not load design "${designName}". ${errorMessage}`, variant: "destructive" });
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+      // if (currentDesignId === designId) {
+      //    setCurrentDesignId(null);
+      //    setCurrentDesignName(null);
+      // }
     } finally {
       setIsLoadingDesigns(false);
     }
-  }, [currentUser, toast]);
+  }, [currentUser, toast, currentDesignId]);
 
 
   const handleOpenNewDesignDialog = useCallback((isInitialPrompt = false) => {
@@ -592,26 +605,34 @@ function AppContent() {
 
   useEffect(() => {
     if (currentUser) {
-      fetchUserDesigns();
+      fetchUserDesigns(); // Always fetch the list of designs for "My Designs"
+
       const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
 
-      if (storedActiveDesignId && storedActiveDesignName) {
-        // If there's an active design in local storage AND it's not already the current one, load it.
-        // This prevents re-loading if the effect re-runs due to currentDesignId being set by this very logic.
+      const isValidStoredId = typeof storedActiveDesignId === 'string' && storedActiveDesignId.trim() !== '' && storedActiveDesignId !== 'null';
+      const isValidStoredName = typeof storedActiveDesignName === 'string' && storedActiveDesignName.trim() !== '' && storedActiveDesignName !== 'null';
+      
+      if (isValidStoredId && isValidStoredName) {
         if (currentDesignId !== storedActiveDesignId) {
-          handleLoadDesign(storedActiveDesignId, storedActiveDesignName);
+          // console.log(`Restoring active design from localStorage: ID=${storedActiveDesignId}`);
+          handleLoadDesign(storedActiveDesignId!, storedActiveDesignName!);
+        } else {
+          // console.log(`Active design ${currentDesignId} from localStorage is already current. No load needed.`);
         }
-      } else if (!currentDesignId) { 
-        // Only prompt for new design if:
-        // 1. No active design in local storage.
-        // 2. AND no currentDesignId is set (e.g., from a previous action in this session like confirming a new design).
-        handleOpenNewDesignDialog(true); 
+      } else {
+        // No valid design in localStorage.
+        // If there's also no currentDesignId set (e.g., app just loaded, or previous load failed and cleared it)
+        // then it's appropriate to prompt for a new design.
+        if (!currentDesignId) {
+          // console.log(`No valid stored design and no currentDesignId. Prompting for new design.`);
+          handleOpenNewDesignDialog(true);
+        }
       }
     } else {
       // User logged out or not logged in
       setCurrentDesignId(null);
-      setCurrentDesignName('Untitled Design');
+      setCurrentDesignName(null); 
       setUserDesigns([]);
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
@@ -623,8 +644,8 @@ function AppContent() {
       setSelectedNode(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, fetchUserDesigns, handleLoadDesign, handleOpenNewDesignDialog, currentDesignId]);
-
+  }, [currentUser, currentDesignId]); // Key dependencies that trigger re-evaluation of active design state
+  // fetchUserDesigns, handleLoadDesign, handleOpenNewDesignDialog are memoized with useCallback
 
 
   const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
@@ -644,8 +665,6 @@ function AppContent() {
         description: `"${templateName}" has been loaded onto the canvas.`,
         duration: 3000,
       });
-      // For templates, don't automatically set currentDesignName/Id or local storage
-      // This allows users to load a template into an existing or new named design
     }
   };
 
@@ -890,7 +909,7 @@ function AppContent() {
   const handleLogout = async () => {
     await logout();
     setCurrentDesignId(null);
-    setCurrentDesignName('Untitled Design');
+    setCurrentDesignName(null);
     localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
     localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
     if (canvasRef.current) {
@@ -1167,11 +1186,11 @@ function AppContent() {
                 <SidebarTrigger />
                 <span className="ml-2 font-semibold text-lg text-primary">Architech AI</span>
             </div>
-            {isMobile && currentDesignName && (
-                <span className="text-sm text-muted-foreground truncate">{currentDesignName}</span>
+            {isMobile && (currentDesignName || 'Untitled Design') && (
+                <span className="text-sm text-muted-foreground truncate">{currentDesignName || 'Untitled Design'}</span>
             )}
         </header>
-        {!isMobile && currentDesignName && (
+        {!isMobile && (
              <div className="h-12 flex items-center px-6 border-b bg-background">
                 <h2 className="text-lg font-semibold text-foreground">{currentDesignName || "Untitled Design"}</h2>
             </div>
@@ -1231,12 +1250,12 @@ function AppContent() {
 
       {isNewDesignDialogOpen && (
         <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen && !newDesignNameInput && currentDesignId === null && currentUser) {
-              // If dialog is closed without confirming, and it was an initial auto-prompt,
-              // re-prompt or set a default. For now, let's allow closing.
-            }
-            if (!isOpen && !currentDesignId) { // if closed and no design active (e.g. initial prompt was cancelled)
-                setCurrentDesignName('Untitled Design'); // Keep a default name
+            if (!isOpen && !currentDesignId && currentUser) { 
+                // If dialog is closed (e.g. by pressing Esc or clicking X)
+                // AND no design ID is active (meaning it was an initial prompt or a cancelled "New Design" action)
+                // AND a user is logged in (to avoid this for logged-out default state)
+                // We should ensure a sensible default state rather than an empty one or error.
+                setCurrentDesignName('Untitled Design'); 
                 if (canvasRef.current) {
                     canvasRef.current.loadTemplate(createDefaultNotes(), []);
                 }
@@ -1299,6 +1318,3 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
-
-
-    
