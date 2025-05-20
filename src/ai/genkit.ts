@@ -32,3 +32,4 @@ export const ai = genkit({
 
 console.log('Genkit AI object initialized. Default model for googleAI plugin set to gemini-pro.');
 // Removed: console.log('Genkit initialized with ai object. Configured model:', ai.getModel().name);
+
