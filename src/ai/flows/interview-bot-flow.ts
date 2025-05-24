@@ -49,6 +49,7 @@ export async function interviewBot(input: InterviewBotInput): Promise<InterviewB
 
 const prompt = ai.definePrompt({
   name: 'interviewBotPrompt',
+  model: 'googleai/gemini-pro', // Explicitly specify the model
   input: {schema: InterviewBotInputSchema}, // Schema remains for flow input validation
   output: {schema: InterviewBotOutputSchema},
   // System message instructing the AI about its role and context
