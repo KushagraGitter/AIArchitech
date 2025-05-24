@@ -491,6 +491,7 @@ function AppContent() {
       return;
     }
     setIsLoadingDesigns(true);
+    // console.log(`Fetching designs for user: ${currentUser.uid}`);
     try {
       const q = query(
         collection(db, 'designs'),
@@ -499,8 +500,10 @@ function AppContent() {
       );
       const querySnapshot = await getDocs(q);
       const designs: UserDesign[] = [];
+      // console.log(`Query snapshot empty: ${querySnapshot.empty}, size: ${querySnapshot.size}`);
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        // console.log(`Fetched doc ${doc.id}:`, data);
         if (data.designName && data.updatedAt) { 
             designs.push({
             id: doc.id,
@@ -510,6 +513,9 @@ function AppContent() {
         }
       });
       setUserDesigns(designs);
+      if (designs.length === 0) {
+        // console.log("No designs found for this user in Firestore.");
+      }
     } catch (error) {
       console.error("Error fetching user designs:", error);
       toast({
@@ -562,7 +568,6 @@ function AppContent() {
           localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
         }
         // If this was the design we were trying to load, ensure current state reflects failure to load anything.
-        // This helps the useEffect hook decide to load default notes.
         setCurrentDesignId(null); 
         setCurrentDesignName(null);
         setIsLoadingDesigns(false);
@@ -633,45 +638,47 @@ function AppContent() {
     }
 
     // User is logged in
-    fetchUserDesigns(); // Fetch the list of designs for "My Designs" panel
+    const initializeAppForUser = async () => {
+      await fetchUserDesigns(); // Fetch the list of designs for "My Designs" panel
 
-    const initializeActiveDesign = async () => {
       const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-
+      
       const isValidStoredId = typeof storedActiveDesignId === 'string' && storedActiveDesignId.trim() !== '' && storedActiveDesignId !== 'null';
       const isValidStoredName = typeof storedActiveDesignName === 'string' && storedActiveDesignName.trim() !== '' && storedActiveDesignName !== 'null';
 
       let designLoadedFromStorage = false;
       if (isValidStoredId && isValidStoredName) {
         // Only attempt to load if currentDesignId isn't already set to this ID
-        // This prevents re-loading if the effect runs for other reasons while this design is active
         if (currentDesignId !== storedActiveDesignId) {
           // console.log(`Attempting to restore design from localStorage: ${storedActiveDesignId}`);
           designLoadedFromStorage = await handleLoadDesign(storedActiveDesignId!, storedActiveDesignName!);
         } else {
           // console.log(`Design ${currentDesignId} is already active, no need to restore from localStorage.`);
-          designLoadedFromStorage = true; // Considered "loaded" as it's already active
+          designLoadedFromStorage = true; 
         }
       }
 
       // If no design was successfully loaded from storage (or storage was empty)
       // AND no design is currently active (currentDesignId is null), then load default notes.
+      // This prevents overwriting a newly created design that hasn't been saved yet.
       if (!designLoadedFromStorage && !currentDesignId) {
         // console.log("No design loaded from storage and no current design active. Loading default notes.");
         if (canvasRef.current) {
           canvasRef.current.loadTemplate(createDefaultNotes(), []);
         }
-        setCurrentDesignId(null); 
-        setCurrentDesignName(null); 
+        // Don't set currentDesignId/Name here, let it be "Untitled" until saved or a new one is explicitly created
+        // setCurrentDesignId(null); // This line might be causing the "Untitled Design" issue
+        // setCurrentDesignName(null);
       }
     };
 
-    initializeActiveDesign();
+    initializeAppForUser();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]); // Run only when currentUser changes (login/logout).
-                     // fetchUserDesigns and handleLoadDesign are memoized with useCallback.
+  }, [currentUser]); 
+  // Removed currentDesignId from deps to avoid re-running when it's set by handleLoadDesign itself.
+  // fetchUserDesigns and handleLoadDesign are memoized.
 
 
   const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
@@ -1055,11 +1062,11 @@ function AppContent() {
             
                 <Separator className="my-2" />
                 <SidebarGroup className="p-2 space-y-2">
-                   <Button type="button" variant="outline" className="w-full" onClick={handleNewDesignButtonClick}>
+                   <Button type="button" variant="secondary" className="w-full" onClick={handleNewDesignButtonClick}>
                       <FileText className="mr-2 h-4 w-4" />
                       New Design
                     </Button>
-                    <Button type="button" variant="outline" className="w-full" onClick={handleSaveDesign} disabled={isSavingDesign || !currentDesignId}>
+                    <Button type="button" variant="secondary" className="w-full" onClick={handleSaveDesign} disabled={isSavingDesign || !currentDesignId}>
                       {isSavingDesign ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
@@ -1067,16 +1074,14 @@ function AppContent() {
                       )}
                       Save Design
                     </Button>
-                  <div className="mt-0"> 
-                    <Button type="submit" className="w-full" disabled={isLoadingEvaluation}>
-                      {isLoadingEvaluation ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="mr-2 h-4 w-4" />
-                      )}
-                      Evaluate Design
-                    </Button>
-                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoadingEvaluation}>
+                    {isLoadingEvaluation ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-2 h-4 w-4" />
+                    )}
+                    Evaluate Design
+                  </Button>
                 </SidebarGroup>
               </form>
             </Form>
@@ -1268,8 +1273,6 @@ function AppContent() {
 
       {isNewDesignDialogOpen && (
         <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
-            // If dialog is closed by 'Cancel' or clicking outside, and no current design is active,
-            // ensure default notes are loaded. confirmNewDesign handles success cases.
             if (!isOpen && !currentDesignId && currentUser && canvasRef.current) { 
                 canvasRef.current.loadTemplate(createDefaultNotes(), []);
                 setCurrentDesignId(null);
