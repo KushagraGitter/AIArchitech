@@ -47,17 +47,17 @@ export async function interviewBot(input: InterviewBotInput): Promise<InterviewB
   return interviewBotFlow(input);
 }
 
-// This prompt definition relies on Genkit to handle the 'chatHistory' from the input
-// as the conversation history for the LLM call.
-// The 'prompt' field here is effectively the latest user message.
-// The 'system' field provides the overall system instruction.
+// The prompt object.
+// Note: The 'system' parameter for ai.definePrompt is avoided as it seems to cause issues
+// with gemini-pro by potentially inserting a "system" role message into the main content list.
+// All system-level instructions are now part of the main 'prompt' template.
 const interviewBotPromptObj = ai.definePrompt({
   name: 'interviewBotPrompt',
-  model: 'googleai/gemini-pro', 
-  input: {schema: InterviewBotInputSchema}, 
+  model: 'googleai/gemini-pro',
+  input: {schema: InterviewBotInputSchema}, // Genkit uses this schema to understand the input structure.
+                                          // `input.chatHistory` is expected to be an array of User/Model messages.
   output: {schema: InterviewBotOutputSchema},
-  // System message instructing the AI about its role and context
-  system: `You are an expert system design interviewer. Your role is to help the user practice for a system design interview.
+  prompt: `You are an expert system design interviewer. Your role is to help the user practice for a system design interview.
 You have been provided with the user's current system design diagram, their feature requirements, and any back-of-the-envelope (BOTE) calculations they've made.
 Your primary goal is to:
 1. Understand the user's current design based on the diagram, requirements, and BOTE notes.
@@ -66,7 +66,7 @@ Your primary goal is to:
 4. Help them identify potential issues or areas for improvement in their design.
 5. Maintain a conversational, helpful, and Socratic questioning style. Guide them to think deeper.
 6. Refer to the provided 'diagramJson', 'featureRequirements', and 'boteCalculations' to make your questions and answers highly relevant.
-7. Use the 'chatHistory' (which will be passed by Genkit from the input) to maintain conversation context and avoid repetition.
+7. Use the 'chatHistory' (which is part of the input to this prompt) to maintain conversation context and avoid repetition.
 
 Current System Design Context:
 Feature Requirements:
@@ -85,11 +85,17 @@ System Design Diagram (JSON representation of nodes and edges):
 {{else}}
 No diagram provided yet. You can start by asking about the requirements.
 {{/if}}
-`,
-  // The main 'prompt' here represents the current user's turn.
-  // Genkit will use the 'chatHistory' field from the input object (InterviewBotInput)
-  // to construct the history for the LLM.
-  prompt: `{{{currentUserMessage}}}`, 
+
+Conversation History (if any):
+{{#each chatHistory}}
+{{#if this.role}}## {{this.role}} ##{{/if}}
+{{this.content}}
+{{/each}}
+
+Current Interaction:
+## user ##
+{{{currentUserMessage}}}
+## model ##`, // The AI should generate its response after "## model ##"
 });
 
 
@@ -101,11 +107,11 @@ const interviewBotFlow = ai.defineFlow(
   },
   async (flowInput: InterviewBotInput) => {
     // The flowInput.chatHistory should already be filtered by the client
-    // to only include 'user' and 'model' roles.
+    // to only include 'user' and 'model' roles, conforming to ChatMessageSchema.
     // We pass the flowInput directly to the prompt object.
-    // Genkit's prompt execution will use flowInput.chatHistory for history,
-    // and the rendered 'prompt' template as the last user message.
-    // The 'system' instruction is also handled by Genkit.
+    // Genkit's prompt execution should use flowInput.chatHistory for constructing
+    // the history turns for the LLM, and the rendered 'prompt' template (which includes
+    // system instructions, current context, and the currentUserMessage) as the final part.
     
     const { output } = await interviewBotPromptObj(flowInput);
     if (!output) {
@@ -114,3 +120,5 @@ const interviewBotFlow = ai.defineFlow(
     return output;
   }
 );
+
+    
