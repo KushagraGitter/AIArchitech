@@ -29,7 +29,7 @@ const InterviewBotInputSchema = z.object({
     .describe('Any back-of-the-envelope calculations or notes provided by the user, extracted from "Info Note" components on the canvas.'),
   chatHistory: z
     .array(ChatMessageSchema)
-    .describe('The history of the conversation so far between the user and the AI bot. Each message has a role ("user" or "model") and content.'),
+    .describe('The history of the conversation so far between the user and the AI bot. Each message has a role ("user" or "model") and content. This should NOT include system messages.'),
   currentUserMessage: z
     .string()
     .describe("The user's latest message in the chat."),
@@ -47,10 +47,14 @@ export async function interviewBot(input: InterviewBotInput): Promise<InterviewB
   return interviewBotFlow(input);
 }
 
-const prompt = ai.definePrompt({
+// This prompt definition relies on Genkit to handle the 'chatHistory' from the input
+// as the conversation history for the LLM call.
+// The 'prompt' field here is effectively the latest user message.
+// The 'system' field provides the overall system instruction.
+const interviewBotPromptObj = ai.definePrompt({
   name: 'interviewBotPrompt',
-  model: 'googleai/gemini-pro', // Explicitly specify the model
-  input: {schema: InterviewBotInputSchema}, // Schema remains for flow input validation
+  model: 'googleai/gemini-pro', 
+  input: {schema: InterviewBotInputSchema}, 
   output: {schema: InterviewBotOutputSchema},
   // System message instructing the AI about its role and context
   system: `You are an expert system design interviewer. Your role is to help the user practice for a system design interview.
@@ -62,7 +66,7 @@ Your primary goal is to:
 4. Help them identify potential issues or areas for improvement in their design.
 5. Maintain a conversational, helpful, and Socratic questioning style. Guide them to think deeper.
 6. Refer to the provided 'diagramJson', 'featureRequirements', and 'boteCalculations' to make your questions and answers highly relevant.
-7. Use the 'chatHistory' to maintain conversation context and avoid repetition.
+7. Use the 'chatHistory' (which will be passed by Genkit from the input) to maintain conversation context and avoid repetition.
 
 Current System Design Context:
 Feature Requirements:
@@ -82,15 +86,10 @@ System Design Diagram (JSON representation of nodes and edges):
 No diagram provided yet. You can start by asking about the requirements.
 {{/if}}
 `,
-  prompt: `Chat History:
-{{#each chatHistory}}
-  {{#if this.isUser}}User: {{this.content}}{{/if}}
-  {{#if this.isModel}}AI: {{this.content}}{{/if}}
-{{/each}}
-
-Current Interaction:
-User: {{{currentUserMessage}}}
-AI:`,
+  // The main 'prompt' here represents the current user's turn.
+  // Genkit will use the 'chatHistory' field from the input object (InterviewBotInput)
+  // to construct the history for the LLM.
+  prompt: `{{{currentUserMessage}}}`, 
 });
 
 
@@ -100,42 +99,18 @@ const interviewBotFlow = ai.defineFlow(
     inputSchema: InterviewBotInputSchema,
     outputSchema: InterviewBotOutputSchema,
   },
-  async (input) => {
-    // Preprocess chatHistory for Handlebars compatibility
-    const processedChatHistory = (input.chatHistory || []).map(msg => ({
-      ...msg,
-      isUser: msg.role === 'user',
-      isModel: msg.role === 'model',
-    }));
+  async (flowInput: InterviewBotInput) => {
+    // The flowInput.chatHistory should already be filtered by the client
+    // to only include 'user' and 'model' roles.
+    // We pass the flowInput directly to the prompt object.
+    // Genkit's prompt execution will use flowInput.chatHistory for history,
+    // and the rendered 'prompt' template as the last user message.
+    // The 'system' instruction is also handled by Genkit.
     
-    // Construct the prompt input, ensuring all fields are present
-    const promptInputForHandlebars = {
-        diagramJson: input.diagramJson || JSON.stringify({ nodes: [], edges: [] }),
-        featureRequirements: input.featureRequirements || "No requirements specified.",
-        boteCalculations: input.boteCalculations || "",
-        chatHistory: processedChatHistory, // Use the processed history for Handlebars
-        currentUserMessage: input.currentUserMessage
-    };
-    
-    // Note: The `prompt` function defined by `ai.definePrompt` will still internally validate
-    // its direct input against `InterviewBotInputSchema`. 
-    // We are passing a slightly different shape for Handlebars rendering.
-    // Genkit's prompt templating should use `promptInputForHandlebars` for rendering,
-    // while the schema on `ai.definePrompt` refers to the expected input to the callable prompt object.
-    // If strict schema adherence is required by the prompt call itself for the `chatHistory`
-    // field (beyond just the flow input), this could be an issue. However, typically,
-    // the object passed to the prompt for templating can be richer.
-
-    // To be absolutely safe with Genkit's prompt input typing, we ensure
-    // that the object passed *to the prompt itself* still conforms if necessary,
-    // or acknowledge that Handlebars receives a slightly augmented version.
-    // For now, let's assume Handlebars works with `promptInputForHandlebars`.
-
-    const { output } = await prompt(promptInputForHandlebars as any); // Cast to any if type mismatch with schema
+    const { output } = await interviewBotPromptObj(flowInput);
     if (!output) {
       throw new Error('AI failed to generate a response for the interview bot.');
     }
     return output;
   }
 );
-
