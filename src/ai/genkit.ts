@@ -22,7 +22,7 @@ export const ai = genkit({
   plugins: [
     googleAI({
       apiKey: googleApiKey, // Explicitly pass the key
-      model: 'googleai/gemini-pro', // Set default model for the googleAI plugin
+      model: 'googleai/gemini-2.0-flash', // Set default model for the googleAI plugin
       // You can specify API version if needed, e.g., 'v1beta'
       // apiVersion: 'v1beta',
     }),

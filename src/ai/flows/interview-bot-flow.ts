@@ -53,7 +53,7 @@ export async function interviewBot(input: InterviewBotInput): Promise<InterviewB
 // All system-level instructions are now part of the main 'prompt' template.
 const interviewBotPromptObj = ai.definePrompt({
   name: 'interviewBotPrompt',
-  model: 'googleai/gemini-pro',
+  model: 'googleai/gemini-2.0-flash',
   input: {schema: InterviewBotInputSchema}, // Genkit uses this schema to understand the input structure.
                                           // `input.chatHistory` is expected to be an array of User/Model messages.
   output: {schema: InterviewBotOutputSchema},
