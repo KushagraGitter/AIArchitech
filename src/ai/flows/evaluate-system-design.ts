@@ -52,7 +52,7 @@ export async function evaluateSystemDesign(input: EvaluateSystemDesignInput): Pr
 
 const prompt = ai.definePrompt({
   name: 'evaluateSystemDesignPrompt',
-  model: 'googleai/gemini-pro', // Explicitly specify the model
+  model: 'googleai/gemini-2.0-flash', // Explicitly specify the model
   input: {schema: EvaluateSystemDesignInputSchema},
   output: {schema: EvaluateSystemDesignOutputSchema},
   prompt: `You are an expert system architect with years of experience designing and reviewing complex, scalable, and resilient systems. Your task is to evaluate a given system design based on the provided requirements, diagram, and any back-of-the-envelope calculations.
