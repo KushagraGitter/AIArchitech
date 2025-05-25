@@ -32,7 +32,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
             storageKey="architech-ai-theme"
-            themes={['light', 'dark', 'system', 'theme-ocean', 'theme-forest']}
+            themes={['light', 'dark', 'system', 'theme-ocean', 'theme-forest', 'theme-midnight-dusk', 'theme-cyber-glow']}
           >
             {children}
             <Toaster />

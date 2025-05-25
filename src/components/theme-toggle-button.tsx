@@ -16,23 +16,23 @@ import {
 const themes = [
   { name: "Light", value: "light", icon: Sun },
   { name: "Dark", value: "dark", icon: Moon },
-  { name: "Ocean", value: "theme-ocean", icon: Palette }, // Using Palette as a generic theme icon
-  { name: "Forest", value: "theme-forest", icon: Palette }, // Using Palette as a generic theme icon
+  { name: "Ocean", value: "theme-ocean", icon: Palette },
+  { name: "Forest", value: "theme-forest", icon: Palette },
+  { name: "Midnight Dusk", value: "theme-midnight-dusk", icon: Moon },
+  { name: "Cyber Glow", value: "theme-cyber-glow", icon: Moon },
   { name: "System", value: "system", icon: Laptop },
 ];
 
 export function ThemeToggleButton() {
   const { setTheme, theme: activeTheme } = useTheme();
 
+  const ActiveIcon = themes.find(t => t.value === activeTheme)?.icon || Laptop;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Select theme">
-          {activeTheme === 'light' && <Sun className="h-[1.2rem] w-[1.2rem]" />}
-          {activeTheme === 'dark' && <Moon className="h-[1.2rem] w-[1.2rem]" />}
-          {activeTheme === 'theme-ocean' && <Palette className="h-[1.2rem] w-[1.2rem]" />}
-          {activeTheme === 'theme-forest' && <Palette className="h-[1.2rem] w-[1.2rem]" />}
-          {activeTheme === 'system' && <Laptop className="h-[1.2rem] w-[1.2rem]" />}
+          <ActiveIcon className="h-[1.2rem] w-[1.2rem]" />
           <span className="sr-only">Select theme</span>
         </Button>
       </DropdownMenuTrigger>
