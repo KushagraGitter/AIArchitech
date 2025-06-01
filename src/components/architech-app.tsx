@@ -646,8 +646,8 @@ function AppContent() {
         setCurrentDesignName(null);
         setCanvasLoadedDesignId(null);
         setUserDesigns([]);
-        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+        // localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+        // localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
         if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
         setAiFeedback(null);
         setChatMessages([]);
