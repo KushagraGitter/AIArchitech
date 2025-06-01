@@ -484,6 +484,9 @@ function AppContent() {
   const [diagramChangedSinceLastSave, setDiagramChangedSinceLastSave] = useState(false);
   const autosaveTimer = useRef<NodeJS.Timeout | null>(null);
 
+  const [canvasLoadedDesignId, setCanvasLoadedDesignId] = useState<string | null>(null);
+  const [isCanvasSyncing, setIsCanvasSyncing] = useState(false);
+
 
   const { currentUser, logout, loading: authLoading } = useAuth();
 
@@ -541,10 +544,7 @@ function AppContent() {
       toast({ title: "Login Required", description: "Please log in to load designs.", variant: "destructive" });
       return false;
     }
-    if (!canvasRef.current) {
-      toast({ title: "Error", description: "Canvas not available.", variant: "destructive" });
-      return false;
-    }
+    // Removed direct canvasRef.current check from here, will be checked before loading to canvas
     
     setIsLoadingDesigns(true); 
     try {
@@ -554,18 +554,27 @@ function AppContent() {
       if (docSnap.exists()) {
         const designData = docSnap.data();
         const diagram = JSON.parse(designData.diagramJson) as { nodes: Node<NodeData>[], edges: Edge[] };
-        canvasRef.current.loadTemplate(diagram.nodes, diagram.edges);
         
+        // Conceptually set active design
         setCurrentDesignId(designId);
         setCurrentDesignName(designName);
         localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, designId);
         localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, designName);
+        
+        if (canvasRef.current) {
+            canvasRef.current.loadTemplate(diagram.nodes, diagram.edges);
+            setCanvasLoadedDesignId(designId); // Mark canvas as loaded with this design
+            console.log(`handleLoadDesign: Successfully loaded ${designId} to canvas.`);
+        } else {
+            console.warn(`handleLoadDesign: Canvas not ready for ${designId}. It should load via sync effect.`);
+            // canvasLoadedDesignId remains different, sync effect will trigger
+        }
+        
         setSelectedNode(null);
         setAiFeedback(null);
         setChatMessages([]);
         handleSetDiagramChanged(false);
         toast({ title: "Design Loaded", description: `"${designName}" is now active.` });
-        setIsLoadingDesigns(false);
         return true; 
       } else {
         toast({ title: "Load Failed", description: `Design "${designName}" (ID: ${designId}) not found.`, variant: "destructive" });
@@ -576,8 +585,8 @@ function AppContent() {
         if (currentDesignId === designId) {
             setCurrentDesignId(null); 
             setCurrentDesignName(null);
+            setCanvasLoadedDesignId(null);
         }
-        setIsLoadingDesigns(false);
         return false; 
       }
     } catch (error) {
@@ -592,9 +601,11 @@ function AppContent() {
        if (currentDesignId === designId) {
             setCurrentDesignId(null); 
             setCurrentDesignName(null);
+            setCanvasLoadedDesignId(null);
         }
-      setIsLoadingDesigns(false);
       return false; 
+    } finally {
+        setIsLoadingDesigns(false);
     }
   }, [currentUser, toast, currentDesignId, handleSetDiagramChanged]);
 
@@ -615,6 +626,7 @@ function AppContent() {
         const newId = crypto.randomUUID();
         setCurrentDesignId(newId);
         setCurrentDesignName("Untitled Design"); 
+        setCanvasLoadedDesignId(newId); // New design is immediately "loaded" conceptually
         localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, newId);
         localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, "Untitled Design");
         if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
@@ -626,12 +638,13 @@ function AppContent() {
   },[currentUser, toast, handleSetDiagramChanged]);
 
 
+  // Effect for initial user setup and localStorage restoration
   useEffect(() => {
     const initializeAppForUser = async () => {
       if (!currentUser) {
-        // Logout or not yet loaded
         setCurrentDesignId(null);
         setCurrentDesignName(null);
+        setCanvasLoadedDesignId(null);
         setUserDesigns([]);
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
@@ -645,62 +658,90 @@ function AppContent() {
         return;
       }
 
-      // User is logged in
-      setInitialDialogFlowPending(true); // Start the dialog flow process
-      await fetchUserDesigns(); // Fetch designs first
+      setInitialDialogFlowPending(true);
+      await fetchUserDesigns(); 
 
       const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-      let designRestoredFromStorage = false;
+      
+      let activeDesignIdentifiedFromStorage = false;
 
       if (storedActiveDesignId && storedActiveDesignName) {
-        // Check if the currently active design is different from localStorage
-        // This avoids reloading if the design is already active (e.g., due to HMR or other non-logout re-renders)
-        if (currentDesignId !== storedActiveDesignId) {
-            console.log("Attempting to restore design from localStorage:", storedActiveDesignId, storedActiveDesignName);
-            designRestoredFromStorage = await handleLoadDesign(storedActiveDesignId, storedActiveDesignName);
-        } else {
-            console.log("Design from localStorage is already active:", currentDesignId);
-            designRestoredFromStorage = true; // Already active, no need to reload
-            handleSetDiagramChanged(false); // Ensure flag is false
+        console.log("Found active design in localStorage:", storedActiveDesignId, storedActiveDesignName);
+        // Conceptually set this as the active design. Canvas sync effect will handle loading it.
+        if (currentDesignId !== storedActiveDesignId) { // Avoid redundant state sets if already correct
+            setCurrentDesignId(storedActiveDesignId);
+            setCurrentDesignName(storedActiveDesignName);
+            // Do NOT set canvasLoadedDesignId here, let the sync effect do it after actual canvas load
         }
-      }
-
-
-      if (designRestoredFromStorage) {
-        setInitialDialogFlowPending(false); // Active design restored, no dialogs needed
+        activeDesignIdentifiedFromStorage = true;
+        setInitialDialogFlowPending(false); // We have a target, suppress dialogs for now.
       } else {
-        // If no design was restored from storage, and currentDesignId is still null
-        // (it would be if handleLoadDesign failed and reset it, or if localStorage was empty)
-        // The second useEffect will handle showing the appropriate dialog.
-        // If localStorage was empty and no currentDesignId, load default notes.
-        if (!currentDesignId && canvasRef.current) {
-             console.log("No active design from localStorage or load failed, loading default notes.");
+        // No design in localStorage. Dialog flow should proceed if no current design is set.
+        console.log("No active design in localStorage.");
+        if (!currentDesignId && canvasRef.current) { // If no current design from other means
+             console.log("No currentDesignId and no localStorage design, loading default notes.");
              canvasRef.current.loadTemplate(createDefaultNotes(), []);
+             setCanvasLoadedDesignId(null); // No specific design loaded to canvas
              handleSetDiagramChanged(false);
         }
+        // initialDialogFlowPending remains true if !activeDesignIdentifiedFromStorage
+      }
+      
+      if (!activeDesignIdentifiedFromStorage) {
+        // This will be caught by the dialog effect if initialDialogFlowPending is still true.
+        console.log("No design identified from storage, initialDialogFlowPending remains true for dialogs.");
       }
     };
 
     initializeAppForUser();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]); // Removed handleLoadDesign from deps to avoid loop with currentDesignId
+  }, [currentUser]);
+
+
+  // Effect to synchronize canvas with currentDesignId if needed (e.g., canvas wasn't ready initially)
+  useEffect(() => {
+    const syncCanvas = async () => {
+      if (currentDesignId && currentDesignName && canvasRef.current && canvasLoadedDesignId !== currentDesignId && !isCanvasSyncing) {
+        console.log(`Canvas Sync: Attempting to load ${currentDesignId} ('${currentDesignName}') to canvas. Current canvas loaded: ${canvasLoadedDesignId}`);
+        setIsCanvasSyncing(true);
+        const loadedSuccessfully = await handleLoadDesign(currentDesignId, currentDesignName);
+        if (!loadedSuccessfully) {
+          console.error(`Canvas Sync: Failed to load ${currentDesignId}. Clearing from localStorage and active context.`);
+          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+          setCurrentDesignId(null);
+          setCurrentDesignName(null);
+          setCanvasLoadedDesignId(null);
+          setInitialDialogFlowPending(true); // Re-trigger dialog flow as the stored design was invalid
+          if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
+        } else {
+             // handleLoadDesign should have setCanvasLoadedDesignId if successful with canvas
+             console.log(`Canvas Sync: handleLoadDesign for ${currentDesignId} completed.`);
+        }
+        setIsCanvasSyncing(false);
+      }
+    };
+    syncCanvas();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDesignId, currentDesignName, canvasRef.current, canvasLoadedDesignId]); // Removed handleLoadDesign to prevent potential loops, ensure it's stable or its deps are managed.
 
 
   // Effect to handle showing WelcomeBackDialog or NewDesignDialog
   useEffect(() => {
-    if (currentUser && initialDialogFlowPending && !isLoadingDesigns && currentDesignId === null) {
+    if (currentUser && initialDialogFlowPending && !isLoadingDesigns && !currentDesignId) {
+      // Only show dialogs if initial flow is pending AND no currentDesignId has been established
+      // (either from localStorage or by starting a new one).
       if (userDesigns.length > 0) {
-        console.log("Showing Welcome Back Dialog");
+        console.log("Dialog Effect: Showing Welcome Back Dialog");
         setIsWelcomeBackDialogOpen(true);
       } else {
-        console.log("No designs, showing New Design Dialog");
-        handleOpenNewDesignDialog(true); // Prompt to name their first design
+        console.log("Dialog Effect: No designs, showing New Design Dialog to name first design");
+        handleOpenNewDesignDialog(true); 
       }
       setInitialDialogFlowPending(false); // Dialog flow action taken
     }
   }, [currentUser, initialDialogFlowPending, isLoadingDesigns, userDesigns, currentDesignId, handleOpenNewDesignDialog]);
-
 
 
   const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
@@ -718,6 +759,7 @@ function AppContent() {
       
       setCurrentDesignId(null); 
       setCurrentDesignName(`${templateName} (Unsaved)`);
+      setCanvasLoadedDesignId(null); // Template is not a saved design ID
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
       handleSetDiagramChanged(false);
@@ -736,7 +778,7 @@ function AppContent() {
       toast({ title: "Login Required", description: "Please log in to create a new design.", variant: "destructive" });
       return;
     }
-    setIsWelcomeBackDialogOpen(false); // Close if open
+    setIsWelcomeBackDialogOpen(false); 
     handleOpenNewDesignDialog(true); 
   };
 
@@ -747,6 +789,7 @@ function AppContent() {
     
     setCurrentDesignId(newId);
     setCurrentDesignName(name);
+    setCanvasLoadedDesignId(newId); // New design is immediately reflected on canvas
 
     localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, newId);
     localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, name);
@@ -761,7 +804,7 @@ function AppContent() {
     setIsNewDesignDialogOpen(false);
     setIsWelcomeBackDialogOpen(false);
     setNewDesignNameInput('');
-    handleSetDiagramChanged(false);
+    handleSetDiagramChanged(false); // Fresh design, no unsaved changes yet.
     toast({
       title: "New Design Ready",
       description: `Design "${name}" has been created. Save it to keep your work.`,
@@ -800,6 +843,7 @@ function AppContent() {
 
       toast({ title: "Design Saved!", description: `"${currentDesignName}" has been saved successfully.` });
       handleSetDiagramChanged(false);
+      setCanvasLoadedDesignId(currentDesignId); // Ensure canvas loaded state is accurate
       fetchUserDesigns(); 
     } catch (error) {
       console.error("Error saving design:", error);
@@ -1014,9 +1058,7 @@ function AppContent() {
           await setDoc(designRef, designData, { merge: true });
           console.log(`Autosave: Successfully saved ${currentDesignId}`);
           handleSetDiagramChanged(false); 
-          // Optionally, fetch user designs if you want the "updatedAt" to refresh in "My Designs" list,
-          // but this might be too frequent for autosave. Consider if needed.
-          // fetchUserDesigns(); 
+          setCanvasLoadedDesignId(currentDesignId); // Autosave means canvas is def up to date
         } catch (error) {
           console.error("Autosave: Error saving design:", currentDesignId, error);
           toast({
@@ -1024,7 +1066,6 @@ function AppContent() {
             description: `Could not automatically save your design "${currentDesignName}". Please try saving manually. ${error instanceof Error ? error.message : String(error)}`,
             variant: "destructive",
           });
-          // Do not reset diagramChangedSinceLastSave on error, so it tries again or user saves manually
         }
       }, AUTOSAVE_DELAY_MS);
     } else if (diagramChangedSinceLastSave) {
@@ -1038,15 +1079,13 @@ function AppContent() {
         });
     }
 
-
-    // Cleanup function for the autosave timer
     return () => {
       if (autosaveTimer.current) {
         clearTimeout(autosaveTimer.current);
         console.log("Autosave Effect: Cleanup - Cleared timer for design", currentDesignId);
       }
     };
-  }, [diagramChangedSinceLastSave, currentUser, currentDesignId, currentDesignName, db, toast, isSavingDesign, handleSetDiagramChanged]);
+  }, [diagramChangedSinceLastSave, currentUser, currentDesignId, currentDesignName, toast, isSavingDesign, handleSetDiagramChanged]);
 
 
   if (authLoading && !currentUser) { 
@@ -1390,6 +1429,7 @@ function AppContent() {
             setIsWelcomeBackDialogOpen(false);
             if (!currentDesignId && canvasRef.current) {
                  canvasRef.current.loadTemplate(createDefaultNotes(), []);
+                 setCanvasLoadedDesignId(null);
                  setCurrentDesignId(null);
                  setCurrentDesignName(null); 
                  handleSetDiagramChanged(false);
@@ -1411,6 +1451,7 @@ function AppContent() {
             if (!isOpen && !currentDesignId && currentUser && canvasRef.current) { 
                  if(!isWelcomeBackDialogOpen) { 
                     canvasRef.current.loadTemplate(createDefaultNotes(), []);
+                    setCanvasLoadedDesignId(null);
                     setCurrentDesignId(null);
                     setCurrentDesignName(null);
                     handleSetDiagramChanged(false);
