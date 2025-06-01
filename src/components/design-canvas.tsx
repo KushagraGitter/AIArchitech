@@ -49,6 +49,7 @@ export interface DesignCanvasHandles {
 
 interface DesignCanvasProps {
   onNodeSelect: (node: Node<NodeData> | null) => void;
+  onStructuralChange?: () => void;
 }
 
 
@@ -57,7 +58,7 @@ const getNextNodeId = () => `dndnode_${idCounter++}`;
 const getNextEdgeId = () => `edge_${idCounter++}`;
 
 
-export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>(({ onNodeSelect }, ref) => {
+export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>(({ onNodeSelect, onStructuralChange }, ref) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChangeInternal] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChangeInternal] = useEdgesState([]);
@@ -82,20 +83,39 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       onNodesChangeInternal(changes);
+      let structuralChangeOccurred = false;
       changes.forEach(change => {
+        // Trigger for add, remove, dimensions, and final position changes (after drag)
+        if (change.type === 'remove' || change.type === 'add' || change.type === 'dimensions' || (change.type === 'position' && (change.dragging === false || change.dragging === undefined))) {
+          console.log("DesignCanvas: Node change detected (structural):", change.type, change);
+          structuralChangeOccurred = true;
+        }
         if (change.type === 'remove') {
           onNodeSelect(null);
         }
       });
+      if (structuralChangeOccurred && onStructuralChange) {
+        onStructuralChange();
+      }
     },
-    [onNodesChangeInternal, onNodeSelect]
+    [onNodesChangeInternal, onNodeSelect, onStructuralChange]
   );
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       onEdgesChangeInternal(changes);
+      let structuralChangeOccurred = false;
+      changes.forEach(change => {
+        if (change.type === 'add' || change.type === 'remove') {
+          console.log("DesignCanvas: Edge change detected (structural):", change.type, change);
+          structuralChangeOccurred = true;
+        }
+      });
+      if (structuralChangeOccurred && onStructuralChange) {
+        onStructuralChange();
+      }
     },
-    [onEdgesChangeInternal]
+    [onEdgesChangeInternal, onStructuralChange]
   );
 
 
@@ -110,8 +130,12 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
         label: '', 
       };
       setEdges((eds) => addEdge(newEdge, eds));
+      if (onStructuralChange) {
+        console.log("DesignCanvas: Edge connected");
+        onStructuralChange();
+      }
     },
-    [setEdges]
+    [setEdges, onStructuralChange]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -151,8 +175,12 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
       };
 
       setNodes((nds) => nds.concat(newNode));
+       if (onStructuralChange) {
+        console.log("DesignCanvas: Node dropped");
+        onStructuralChange();
+      }
     },
-    [reactFlowInstance, setNodes]
+    [reactFlowInstance, setNodes, onStructuralChange]
   );
   
   const onEdgeDoubleClick = useCallback(
@@ -161,7 +189,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
       setEdgeLabelInput(edge.label as string || '');
       setIsEdgeDialogVisible(true);
     },
-    [] // Removed setEdges dependency as it's stable if wrapped in useCallback higher up
+    [] 
   );
 
   const handleSaveEdgeLabel = () => {
@@ -171,6 +199,10 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           ed.id === currentEditingEdgeId ? { ...ed, label: edgeLabelInput, labelStyle: { fill: 'hsl(var(--foreground))', fontWeight: 500 }, labelBgStyle: { fill: 'hsl(var(--background))', fillOpacity: 0.7 }, labelBgPadding: [4,2] } : ed
         )
       );
+       if (onStructuralChange) {
+        console.log("DesignCanvas: Edge label saved");
+        onStructuralChange();
+      }
     }
     setIsEdgeDialogVisible(false);
     setCurrentEditingEdgeId(null);
@@ -198,12 +230,11 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
       setEdges(initialEdges);
       onNodeSelect(null); 
 
-      // Reset idCounter based on the maximum numeric suffix of existing nodes/edges
       const maxNodeIdSuffix = initialNodes.reduce((max, node) => {
         const parts = node.id.split('_');
         const numPart = parts.pop();
         const num = numPart ? parseInt(numPart, 10) : NaN;
-        return Math.max(max, isNaN(num) ? -1 : num); // Use -1 if no numeric part or NaN
+        return Math.max(max, isNaN(num) ? -1 : num); 
       }, -1);
       
       const maxEdgeIdSuffix = initialEdges.reduce((max, edge) => {
@@ -221,6 +252,13 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           reactFlowInstance.fitView({padding: 0.2});
         }
       }, 0);
+       if (onStructuralChange) {
+        console.log("DesignCanvas: Template loaded, signaling structural change for initial state.");
+        // Typically, loading a template means it's a new baseline, so changes "start" from here.
+        // However, if an autosave should occur *after* loading a template (if it's a named design),
+        // this would be the place. For now, assuming loading a template means it's "clean".
+        // onStructuralChange(); // Consider if this is needed or if handled by ArchitechApp
+      }
     },
     updateNodeProperties: (nodeId: string, updatedProperties: Record<string, any>) => {
       setNodes((nds) =>
@@ -237,6 +275,8 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           return node;
         })
       );
+      // Note: `handleUpdateNodeProperties` in ArchitechApp calls `setDiagramChangedSinceLastSave(true)`
+      // so we don't need to call onStructuralChange here explicitly if it's only called from there.
     },
   }));
   
