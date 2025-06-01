@@ -5,6 +5,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/contexts/AuthContext'; // Import AuthProvider
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -35,6 +36,7 @@ export default function RootLayout({
             themes={['light', 'dark', 'system', 'theme-ocean', 'theme-forest', 'theme-midnight-dusk', 'theme-cyber-glow']}
           >
             {children}
+            <SpeedInsights />
             <Toaster />
           </ThemeProvider>
         </AuthProvider>

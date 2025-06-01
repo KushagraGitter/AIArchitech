@@ -39,7 +39,7 @@ export async function generateSystemDesignPrompt(
 
 const prompt = ai.definePrompt({
   name: 'generateSystemDesignPrompt',
-  model: 'googleai/gemini-pro', // Explicitly specify the model
+  model: 'googleai/gemini-2.0-flash', // Explicitly specify the model
   input: {schema: GenerateSystemDesignPromptInputSchema},
   output: {schema: GenerateSystemDesignPromptOutputSchema},
   prompt: `You are a system design expert. Generate a system design prompt based on the following feature requirements:\n\nFeature Requirements: {{{featureRequirements}}}\n\nSystem Design Prompt:`,
