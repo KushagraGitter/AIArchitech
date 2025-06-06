@@ -6,7 +6,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { Node, Edge } from 'reactflow';
-import { ReactFlowProvider } from 'reactflow'; 
+import { ReactFlowProvider } from 'reactflow';
 import {
   collection,
   doc,
@@ -28,11 +28,19 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Form, FormControl, FormField, FormItem, FormLabel as ShadFormLabel, FormMessage } from '@/components/ui/form'; // Renamed FormLabel to avoid conflict
+import { Form, FormControl, FormField, FormItem, FormLabel as ShadFormLabel, FormMessage } from '@/components/ui/form';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, LogOut, UserCircle, AlertCircle, SaveIcon, ListChecks, Hand } from 'lucide-react';
+import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, LogOut, UserCircle, AlertCircle, SaveIcon, ListChecks, Hand, Menu } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 
 import {
@@ -57,12 +65,13 @@ import { PropertiesPanel, type ComponentConfig } from '@/components/properties-p
 import type { EvaluateSystemDesignInput, EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 import { evaluateSystemDesign } from '@/ai/flows/evaluate-system-design';
 import { Separator } from './ui/separator';
-import { ThemeToggleButton } from './theme-toggle-button';
+import { themes as themeOptions } from '@/components/theme-toggle-button'; // Import theme definitions
 import { ChatBotWindow, type ChatMessage } from '@/components/chat-bot-window';
 import type { InterviewBotInput } from '@/ai/flows/interview-bot-flow';
 import { interviewBot } from '@/ai/flows/interview-bot-flow';
 import { useAuth } from '@/contexts/AuthContext';
 import { WelcomeBackDialog } from '@/components/welcome-back-dialog';
+import { useTheme } from "next-themes";
 
 
 const formSchema = z.object({
@@ -79,7 +88,7 @@ type AuthFormValues = z.infer<typeof authFormSchema>;
 export interface UserDesign {
   id: string;
   name: string;
-  updatedAt: Timestamp; 
+  updatedAt: Timestamp;
 }
 
 const LOCAL_STORAGE_ACTIVE_DESIGN_ID = 'architechAiActiveDesignId';
@@ -95,7 +104,7 @@ export const designComponents: ComponentConfig[] = [
     initialProperties: { title: "Note", content: "Enter your text here..." },
     configurableProperties: [
       { id: 'title', label: 'Title', type: 'text' },
-      { id: 'content', label: 'Content', type: 'textarea' }, 
+      { id: 'content', label: 'Content', type: 'textarea' },
     ]
   },
   {
@@ -258,7 +267,7 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
       { id: 'chat_usersvc_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'User Service', iconName: 'Users', properties: designComponents.find(c => c.name === "User Service")?.initialProperties || {} } },
       { id: 'chat_chatsvc_1', type: 'custom', position: { x: 450, y: 200 }, data: { label: 'Chat Service', iconName: 'MessageSquare', properties: designComponents.find(c => c.name === "Chat Service")?.initialProperties || {} } },
       { id: 'chat_ws_lb_1', type: 'custom', position: { x: 250, y: 350 }, data: { label: 'Load Balancer (WS)', iconName: 'Shuffle', properties: {...(designComponents.find(c => c.name === "Load Balancer")?.initialProperties || {}), type: "Network LB"} } },
-      { id: 'chat_ws_server_1', type: 'custom', position: { x: 450, y: 350 }, data: { label: 'WebSocket Server', iconName: 'ServerCog', properties: {protocol: "WSS", framework: "Socket.IO/SignalR", connections: "1M+"} } }, 
+      { id: 'chat_ws_server_1', type: 'custom', position: { x: 450, y: 350 }, data: { label: 'WebSocket Server', iconName: 'ServerCog', properties: {protocol: "WSS", framework: "Socket.IO/SignalR", connections: "1M+"} } },
       { id: 'chat_msgdb_1', type: 'custom', position: { x: 650, y: 200 }, data: { label: 'Message Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "Cassandra", consistency: "Eventual (for messages)", custom: {purpose: "Stores chat messages, read-heavy for history"}} } },
       { id: 'chat_userdb_1', type: 'custom', position: { x: 650, y: -50 }, data: { label: 'User Database', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "PostgreSQL", role: "primary", custom: {purpose: "User accounts, profiles, contacts"}} } },
       { id: 'chat_cache_1', type: 'custom', position: { x: 650, y: 350 }, data: { label: 'Presence Cache', iconName: 'Zap', properties: {...(designComponents.find(c => c.name === "Cache")?.initialProperties || {}), type: "Redis", custom: {use: "User presence, Session data, Typing indicators"}} } },
@@ -335,7 +344,7 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
 
 const createDefaultNotes = (): Node<NodeData>[] => {
   const infoNoteConfig = designComponents.find(c => c.name === "Info Note");
-  if (!infoNoteConfig) return []; 
+  if (!infoNoteConfig) return [];
 
   return [
     {
@@ -355,7 +364,7 @@ const createDefaultNotes = (): Node<NodeData>[] => {
     {
       id: 'default_bote_note_0',
       type: 'custom',
-      position: { x: 50, y: 250 }, 
+      position: { x: 50, y: 250 },
       data: {
         label: 'Info Note',
         iconName: infoNoteConfig.iconName,
@@ -373,7 +382,7 @@ const createDefaultNotes = (): Node<NodeData>[] => {
 function AuthSection() {
   const { signup, login, error: authError, loading: authLoading, clearError } = useAuth();
   const [isLoginMode, setIsLoginMode] = useState(true);
-  
+
   const authForm = useForm<AuthFormValues>({
     resolver: zodResolver(authFormSchema),
     defaultValues: { email: "", password: "" },
@@ -399,7 +408,7 @@ function AuthSection() {
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Logo collapsed={false} />
+            <Logo variant="full" />
           </div>
           <CardTitle className="text-2xl">{isLoginMode ? "Welcome Back!" : "Create Account"}</CardTitle>
           <CardDescription>
@@ -478,7 +487,9 @@ function AppContent() {
   const [currentDesignName, setCurrentDesignName] = useState<string | null>(null);
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
   const [userDesigns, setUserDesigns] = useState<UserDesign[]>([]);
+
   const [isWelcomeBackDialogOpen, setIsWelcomeBackDialogOpen] = useState(false);
+  const [isMyDesignsDialogOpen, setIsMyDesignsDialogOpen] = useState(false); // New state for "My Designs"
   const [initialDialogFlowPending, setInitialDialogFlowPending] = useState(false);
 
   const [diagramChangedSinceLastSave, setDiagramChangedSinceLastSave] = useState(false);
@@ -489,6 +500,7 @@ function AppContent() {
 
 
   const { currentUser, logout, loading: authLoading } = useAuth();
+  const { setTheme } = useTheme();
 
 
   const form = useForm<FormValues>({
@@ -517,7 +529,7 @@ function AppContent() {
       const designs: UserDesign[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        if (data.designName && data.updatedAt) { 
+        if (data.designName && data.updatedAt) {
             designs.push({
             id: doc.id,
             name: data.designName,
@@ -544,9 +556,8 @@ function AppContent() {
       toast({ title: "Login Required", description: "Please log in to load designs.", variant: "destructive" });
       return false;
     }
-    // Removed direct canvasRef.current check from here, will be checked before loading to canvas
-    
-    setIsLoadingDesigns(true); 
+
+    setIsLoadingDesigns(true);
     try {
       const designRef = doc(db, 'designs', designId);
       const docSnap = await getDoc(designRef);
@@ -554,28 +565,26 @@ function AppContent() {
       if (docSnap.exists()) {
         const designData = docSnap.data();
         const diagram = JSON.parse(designData.diagramJson) as { nodes: Node<NodeData>[], edges: Edge[] };
-        
-        // Conceptually set active design
+
         setCurrentDesignId(designId);
         setCurrentDesignName(designName);
         localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, designId);
         localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, designName);
-        
+
         if (canvasRef.current) {
             canvasRef.current.loadTemplate(diagram.nodes, diagram.edges);
-            setCanvasLoadedDesignId(designId); // Mark canvas as loaded with this design
+            setCanvasLoadedDesignId(designId);
             console.log(`handleLoadDesign: Successfully loaded ${designId} to canvas.`);
         } else {
             console.warn(`handleLoadDesign: Canvas not ready for ${designId}. It should load via sync effect.`);
-            // canvasLoadedDesignId remains different, sync effect will trigger
         }
-        
+
         setSelectedNode(null);
         setAiFeedback(null);
         setChatMessages([]);
         handleSetDiagramChanged(false);
         toast({ title: "Design Loaded", description: `"${designName}" is now active.` });
-        return true; 
+        return true;
       } else {
         toast({ title: "Load Failed", description: `Design "${designName}" (ID: ${designId}) not found.`, variant: "destructive" });
         if (localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID) === designId) {
@@ -583,27 +592,27 @@ function AppContent() {
           localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
         }
         if (currentDesignId === designId) {
-            setCurrentDesignId(null); 
+            setCurrentDesignId(null);
             setCurrentDesignName(null);
             setCanvasLoadedDesignId(null);
         }
-        return false; 
+        return false;
       }
     } catch (error) {
       console.error("Error loading design:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({ title: "Load Error", description: `Could not load design "${designName}". ${errorMessage}`, variant: "destructive" });
-      
+
       if (localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID) === designId) {
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
       }
        if (currentDesignId === designId) {
-            setCurrentDesignId(null); 
+            setCurrentDesignId(null);
             setCurrentDesignName(null);
             setCanvasLoadedDesignId(null);
         }
-      return false; 
+      return false;
     } finally {
         setIsLoadingDesigns(false);
     }
@@ -611,7 +620,7 @@ function AppContent() {
 
 
   const handleOpenNewDesignDialog = useCallback((promptForName = false) => {
-    setNewDesignNameInput(''); 
+    setNewDesignNameInput('');
     if (!currentUser) {
         toast({
             title: "Login Required",
@@ -622,11 +631,11 @@ function AppContent() {
     }
     if (promptForName) {
         setIsNewDesignDialogOpen(true);
-    } else { 
+    } else {
         const newId = crypto.randomUUID();
         setCurrentDesignId(newId);
-        setCurrentDesignName("Untitled Design"); 
-        setCanvasLoadedDesignId(newId); // New design is immediately "loaded" conceptually
+        setCurrentDesignName("Untitled Design");
+        setCanvasLoadedDesignId(newId);
         localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, newId);
         localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, "Untitled Design");
         if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
@@ -638,7 +647,6 @@ function AppContent() {
   },[currentUser, toast, handleSetDiagramChanged]);
 
 
-  // Effect for initial user setup and localStorage restoration
   useEffect(() => {
     const initializeAppForUser = async () => {
       if (!currentUser) {
@@ -646,50 +654,44 @@ function AppContent() {
         setCurrentDesignName(null);
         setCanvasLoadedDesignId(null);
         setUserDesigns([]);
-        // localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-        // localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
         if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
         setAiFeedback(null);
         setChatMessages([]);
         setSelectedNode(null);
         setIsWelcomeBackDialogOpen(false);
+        setIsMyDesignsDialogOpen(false);
         setInitialDialogFlowPending(false);
         handleSetDiagramChanged(false);
         return;
       }
 
       setInitialDialogFlowPending(true);
-      await fetchUserDesigns(); 
+      await fetchUserDesigns();
 
       const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-      
+
       let activeDesignIdentifiedFromStorage = false;
 
       if (storedActiveDesignId && storedActiveDesignName) {
         console.log("Found active design in localStorage:", storedActiveDesignId, storedActiveDesignName);
-        // Conceptually set this as the active design. Canvas sync effect will handle loading it.
-        if (currentDesignId !== storedActiveDesignId) { // Avoid redundant state sets if already correct
+        if (currentDesignId !== storedActiveDesignId) {
             setCurrentDesignId(storedActiveDesignId);
             setCurrentDesignName(storedActiveDesignName);
-            // Do NOT set canvasLoadedDesignId here, let the sync effect do it after actual canvas load
         }
         activeDesignIdentifiedFromStorage = true;
-        setInitialDialogFlowPending(false); // We have a target, suppress dialogs for now.
+        setInitialDialogFlowPending(false);
       } else {
-        // No design in localStorage. Dialog flow should proceed if no current design is set.
         console.log("No active design in localStorage.");
-        if (!currentDesignId && canvasRef.current) { // If no current design from other means
+        if (!currentDesignId && canvasRef.current) {
              console.log("No currentDesignId and no localStorage design, loading default notes.");
              canvasRef.current.loadTemplate(createDefaultNotes(), []);
-             setCanvasLoadedDesignId(null); // No specific design loaded to canvas
+             setCanvasLoadedDesignId(null);
              handleSetDiagramChanged(false);
         }
-        // initialDialogFlowPending remains true if !activeDesignIdentifiedFromStorage
       }
-      
+
       if (!activeDesignIdentifiedFromStorage) {
-        // This will be caught by the dialog effect if initialDialogFlowPending is still true.
         console.log("No design identified from storage, initialDialogFlowPending remains true for dialogs.");
       }
     };
@@ -699,7 +701,6 @@ function AppContent() {
   }, [currentUser]);
 
 
-  // Effect to synchronize canvas with currentDesignId if needed (e.g., canvas wasn't ready initially)
   useEffect(() => {
     const syncCanvas = async () => {
       if (currentDesignId && currentDesignName && canvasRef.current && canvasLoadedDesignId !== currentDesignId && !isCanvasSyncing) {
@@ -713,10 +714,9 @@ function AppContent() {
           setCurrentDesignId(null);
           setCurrentDesignName(null);
           setCanvasLoadedDesignId(null);
-          setInitialDialogFlowPending(true); // Re-trigger dialog flow as the stored design was invalid
+          setInitialDialogFlowPending(true);
           if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
         } else {
-             // handleLoadDesign should have setCanvasLoadedDesignId if successful with canvas
              console.log(`Canvas Sync: handleLoadDesign for ${currentDesignId} completed.`);
         }
         setIsCanvasSyncing(false);
@@ -724,22 +724,19 @@ function AppContent() {
     };
     syncCanvas();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentDesignId, currentDesignName, canvasRef.current, canvasLoadedDesignId]); // Removed handleLoadDesign to prevent potential loops, ensure it's stable or its deps are managed.
+  }, [currentDesignId, currentDesignName, canvasRef.current, canvasLoadedDesignId]);
 
 
-  // Effect to handle showing WelcomeBackDialog or NewDesignDialog
   useEffect(() => {
     if (currentUser && initialDialogFlowPending && !isLoadingDesigns && !currentDesignId) {
-      // Only show dialogs if initial flow is pending AND no currentDesignId has been established
-      // (either from localStorage or by starting a new one).
       if (userDesigns.length > 0) {
         console.log("Dialog Effect: Showing Welcome Back Dialog");
         setIsWelcomeBackDialogOpen(true);
       } else {
         console.log("Dialog Effect: No designs, showing New Design Dialog to name first design");
-        handleOpenNewDesignDialog(true); 
+        handleOpenNewDesignDialog(true);
       }
-      setInitialDialogFlowPending(false); // Dialog flow action taken
+      setInitialDialogFlowPending(false);
     }
   }, [currentUser, initialDialogFlowPending, isLoadingDesigns, userDesigns, currentDesignId, handleOpenNewDesignDialog]);
 
@@ -749,17 +746,17 @@ function AppContent() {
     event.dataTransfer.setData('application/reactflow', JSON.stringify(nodeData));
     event.dataTransfer.effectAllowed = 'move';
   };
-  
+
   const loadTemplate = (nodes: Node<NodeData>[], edges: Edge[], templateName: string = "Loaded Template") => {
     if (canvasRef.current) {
       canvasRef.current.loadTemplate(nodes, edges);
-      setSelectedNode(null); 
+      setSelectedNode(null);
       setAiFeedback(null);
       setChatMessages([]);
-      
-      setCurrentDesignId(null); 
+
+      setCurrentDesignId(null);
       setCurrentDesignName(`${templateName} (Unsaved)`);
-      setCanvasLoadedDesignId(null); // Template is not a saved design ID
+      setCanvasLoadedDesignId(null);
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
       handleSetDiagramChanged(false);
@@ -773,23 +770,24 @@ function AppContent() {
     }
   };
 
-  const handleNewDesignButtonClick = () => { 
+  const handleNewDesignButtonClick = () => {
     if (!currentUser) {
       toast({ title: "Login Required", description: "Please log in to create a new design.", variant: "destructive" });
       return;
     }
-    setIsWelcomeBackDialogOpen(false); 
-    handleOpenNewDesignDialog(true); 
+    setIsWelcomeBackDialogOpen(false);
+    setIsMyDesignsDialogOpen(false);
+    handleOpenNewDesignDialog(true);
   };
 
 
   const confirmNewDesign = () => {
     const name = newDesignNameInput.trim() || 'Untitled Design';
-    const newId = crypto.randomUUID(); 
-    
+    const newId = crypto.randomUUID();
+
     setCurrentDesignId(newId);
     setCurrentDesignName(name);
-    setCanvasLoadedDesignId(newId); // New design is immediately reflected on canvas
+    setCanvasLoadedDesignId(newId);
 
     localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, newId);
     localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, name);
@@ -803,8 +801,9 @@ function AppContent() {
     setChatMessages([]);
     setIsNewDesignDialogOpen(false);
     setIsWelcomeBackDialogOpen(false);
+    setIsMyDesignsDialogOpen(false);
     setNewDesignNameInput('');
-    handleSetDiagramChanged(false); // Fresh design, no unsaved changes yet.
+    handleSetDiagramChanged(false);
     toast({
       title: "New Design Ready",
       description: `Design "${name}" has been created. Save it to keep your work.`,
@@ -819,7 +818,7 @@ function AppContent() {
     }
     if (!currentDesignId || !currentDesignName || currentDesignName.endsWith("(Unsaved)")) {
        toast({ title: "Cannot Save", description: "Please name your design first or ensure it's not an unsaved template.", variant: "destructive" });
-       handleOpenNewDesignDialog(true); 
+       handleOpenNewDesignDialog(true);
       return;
     }
     if (!canvasRef.current) {
@@ -832,19 +831,19 @@ function AppContent() {
     const diagramJson = canvasRef.current.getDiagramJson();
     const designData = {
       userId: currentUser.uid,
-      designName: currentDesignName, 
+      designName: currentDesignName,
       diagramJson: diagramJson,
       updatedAt: serverTimestamp(),
     };
 
     try {
-      const designRef = doc(db, 'designs', currentDesignId); 
-      await setDoc(designRef, designData, { merge: true }); 
+      const designRef = doc(db, 'designs', currentDesignId);
+      await setDoc(designRef, designData, { merge: true });
 
       toast({ title: "Design Saved!", description: `"${currentDesignName}" has been saved successfully.` });
       handleSetDiagramChanged(false);
-      setCanvasLoadedDesignId(currentDesignId); // Ensure canvas loaded state is accurate
-      fetchUserDesigns(); 
+      setCanvasLoadedDesignId(currentDesignId);
+      fetchUserDesigns();
     } catch (error) {
       console.error("Error saving design:", error);
       toast({ title: "Save Failed", description: `Could not save design. ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
@@ -853,7 +852,7 @@ function AppContent() {
       console.log("Manual Save: Completed for", currentDesignId);
     }
   };
-  
+
 
   const handleNodeSelect = useCallback((node: Node<NodeData> | null) => {
     setSelectedNode(node);
@@ -874,7 +873,7 @@ function AppContent() {
       }) : null);
     }
   };
-  
+
   const selectedComponentConfig = selectedNode ? designComponents.find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName || c.name === selectedNode.data.label.replace(/ \(.+\)$/, '')) : undefined;
 
   const extractContextFromDiagram = () => {
@@ -884,9 +883,9 @@ function AppContent() {
 
     if (canvasRef.current) {
       const diagramString = canvasRef.current.getDiagramJson();
-      designDiagramJson = diagramString; 
+      designDiagramJson = diagramString;
       const diagram = JSON.parse(diagramString) as { nodes: Node<NodeData>[], edges: Edge[] };
-      
+
       const requirementsNotes: string[] = [];
       const boteNotes: string[] = [];
 
@@ -908,9 +907,9 @@ function AppContent() {
         const allNotesContent = diagram.nodes
           .filter(node => {
             const title = (node.data.properties?.title || "").toLowerCase();
-            return node.data.label === "Info Note" && 
-                   node.data.properties?.content && 
-                   !title.includes("bote") && 
+            return node.data.label === "Info Note" &&
+                   node.data.properties?.content &&
+                   !title.includes("bote") &&
                    !title.includes("calculation");
           })
           .map(node => node.data.properties.content as string)
@@ -934,11 +933,11 @@ function AppContent() {
         return;
     }
     setIsLoadingEvaluation(true);
-    setAiFeedback(null); 
+    setAiFeedback(null);
 
     try {
       const { designDiagramJson, extractedRequirements, extractedBoteCalculations } = extractContextFromDiagram();
-      
+
       const evaluationInput: EvaluateSystemDesignInput = {
         requirements: extractedRequirements,
         designDiagram: designDiagramJson,
@@ -984,9 +983,9 @@ function AppContent() {
 
     try {
       const { designDiagramJson, extractedRequirements, extractedBoteCalculations } = extractContextFromDiagram();
-      
+
       const validChatHistory = chatMessages
-        .filter(msg => msg.role === 'user' || msg.role === 'model') 
+        .filter(msg => msg.role === 'user' || msg.role === 'model')
         .map(msg => ({role: msg.role as 'user' | 'model', content: msg.content}));
 
       const botInput: InterviewBotInput = {
@@ -1020,7 +1019,6 @@ function AppContent() {
     await logout();
   };
 
-   // Autosave useEffect
   useEffect(() => {
     console.log("Autosave Effect: diagramChanged:", diagramChangedSinceLastSave, "currentUser:", !!currentUser, "currentDesignId:", currentDesignId, "name:", currentDesignName, "isSaving:", isSavingDesign);
 
@@ -1036,7 +1034,7 @@ function AppContent() {
       currentDesignName &&
       !currentDesignName.endsWith("(Unsaved)") &&
       canvasRef.current &&
-      !isSavingDesign 
+      !isSavingDesign
     ) {
       console.log("Autosave Effect: Conditions met, setting timer for", AUTOSAVE_DELAY_MS, "ms for design", currentDesignId);
       autosaveTimer.current = setTimeout(async () => {
@@ -1057,8 +1055,8 @@ function AppContent() {
           const designRef = doc(db, 'designs', currentDesignId);
           await setDoc(designRef, designData, { merge: true });
           console.log(`Autosave: Successfully saved ${currentDesignId}`);
-          handleSetDiagramChanged(false); 
-          setCanvasLoadedDesignId(currentDesignId); // Autosave means canvas is def up to date
+          handleSetDiagramChanged(false);
+          setCanvasLoadedDesignId(currentDesignId);
         } catch (error) {
           console.error("Autosave: Error saving design:", currentDesignId, error);
           toast({
@@ -1088,7 +1086,7 @@ function AppContent() {
   }, [diagramChangedSinceLastSave, currentUser, currentDesignId, currentDesignName, toast, isSavingDesign, handleSetDiagramChanged]);
 
 
-  if (authLoading && !currentUser) { 
+  if (authLoading && !currentUser) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -1105,13 +1103,13 @@ function AppContent() {
     <>
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader className="p-0">
-          <Logo collapsed={sidebarState === 'collapsed'} />
+           {/* Logo removed from sidebar header, will be in top nav */}
         </SidebarHeader>
         <ShadSidebarContent className="p-0">
           <ScrollArea className="h-full">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0">
-                <Accordion type="multiple" defaultValue={["components-accordion", "templates-accordion", "my-designs-accordion"]} className="w-full">
+                <Accordion type="multiple" defaultValue={["components-accordion", "templates-accordion"]} className="w-full">
                   <AccordionItem value="components-accordion" className="border-none">
                     <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
                       <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
@@ -1138,7 +1136,7 @@ function AppContent() {
                       </SidebarGroup>
                     </AccordionContent>
                   </AccordionItem>
-                  
+
                   <AccordionItem value="templates-accordion" className="border-none">
                     <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
                       <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
@@ -1155,7 +1153,7 @@ function AppContent() {
                                 className="text-sm"
                                 tooltip={`Load ${template.name} template`}
                               >
-                                <Layers className="h-4 w-4" /> 
+                                <Layers className="h-4 w-4" />
                                 <span>{template.name}</span>
                               </SidebarMenuButton>
                             </SidebarMenuItem>
@@ -1164,60 +1162,13 @@ function AppContent() {
                       </SidebarGroup>
                     </AccordionContent>
                   </AccordionItem>
-
-                  <AccordionItem value="my-designs-accordion" className="border-none">
-                    <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
-                      <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
-                        <ListChecks className="h-4 w-4" /> My Designs
-                      </SidebarGroupLabel>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-1 pb-0">
-                      <SidebarGroup className="p-2 pt-0">
-                        {isLoadingDesigns ? (
-                          <div className="flex justify-center items-center p-4">
-                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                          </div>
-                        ) : userDesigns.length > 0 ? (
-                          <SidebarMenu>
-                            {userDesigns.map((design) => (
-                              <SidebarMenuItem key={design.id}>
-                                <SidebarMenuButton
-                                  onClick={() => {
-                                    setIsWelcomeBackDialogOpen(false); 
-                                    handleLoadDesign(design.id, design.name);
-                                  }}
-                                  className="text-sm"
-                                  tooltip={`Load "${design.name}"`}
-                                  data-active={currentDesignId === design.id}
-                                >
-                                  <FileText className="h-4 w-4" />
-                                  <span>{design.name}</span>
-                                </SidebarMenuButton>
-                              </SidebarMenuItem>
-                            ))}
-                          </SidebarMenu>
-                        ) : (
-                          <p className="p-2 text-xs text-muted-foreground text-center">No saved designs yet. Click "Save Design" to store your current work.</p>
-                        )}
-                      </SidebarGroup>
-                    </AccordionContent>
-                  </AccordionItem>
-
                 </Accordion>
-            
+
                 <Separator className="my-2" />
                 <SidebarGroup className="p-2 space-y-2">
                    <Button type="button" variant="secondary" className="w-full" onClick={handleNewDesignButtonClick}>
                       <FileText className="mr-2 h-4 w-4" />
                       New Design
-                    </Button>
-                    <Button type="button" variant="secondary" className="w-full" onClick={handleSaveDesign} disabled={isSavingDesign || !currentDesignId || (currentDesignName || "").endsWith("(Unsaved)")}>
-                      {isSavingDesign ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <SaveIcon className="mr-2 h-4 w-4" />
-                      )}
-                      Save Design
                     </Button>
                   <Button type="submit" className="w-full" disabled={isLoadingEvaluation}>
                     {isLoadingEvaluation ? (
@@ -1287,7 +1238,7 @@ function AppContent() {
                         {id: 'security', label: 'Security', data: aiFeedback.security},
                         {id: 'maintainability', label: 'Maintainability', data: aiFeedback.maintainability},
                       ].map(criterion => (
-                        criterion.data && 
+                        criterion.data &&
                         <AccordionItem value={criterion.id} key={criterion.id}>
                           <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">
                             {criterion.label}: <span className="ml-1 font-semibold text-primary">{criterion.data.rating}</span>
@@ -1332,43 +1283,108 @@ function AppContent() {
           </ScrollArea>
         </ShadSidebarContent>
         <SidebarFooter className="p-2 border-t border-sidebar-border flex items-center group-data-[collapsible=icon]:justify-center">
-            <div className="flex-grow group-data-[collapsible=icon]:hidden">
-              {currentUser && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <UserCircle className="h-4 w-4"/>
-                  <span className="truncate max-w-[120px]">{currentUser.email}</span>
-                </div>
-              )}
-            </div>
-             {currentUser && (
-              <Button variant="ghost" size="icon" onClick={handleLogout} className="group-data-[collapsible=icon]:ml-0" tooltip="Logout">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            )}
-            <ThemeToggleButton />
+            {/* Footer content (profile, logout, theme toggle) moved to top nav */}
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col"> 
-        <header className="h-14 flex items-center justify-between px-4 border-b md:hidden">
-            <div className="flex items-center">
-                <SidebarTrigger />
-                <span className="ml-2 font-semibold text-lg text-primary">Architech AI</span>
-            </div>
-            {isMobile && (currentDesignName || 'Untitled Design') && (
-                <span className="text-sm text-muted-foreground truncate">{currentDesignName || 'Untitled Design'}</span>
-            )}
-        </header>
-        {!isMobile && (
-             <div className="h-12 flex items-center px-6 border-b bg-background">
-                <h2 className="text-lg font-semibold text-foreground">{currentDesignName || "Untitled Design"}</h2>
-            </div>
-        )}
+
+      <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col">
+         {/* Top Navigation Bar */}
+        <div className="h-14 flex items-center justify-between px-4 border-b bg-card text-card-foreground sticky top-0 z-30">
+          {/* Left Section */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <SidebarTrigger className="md:hidden -ml-2" /> {/* Mobile Sidebar Toggle */}
+            <div className="hidden md:flex items-center"> <Logo variant="icon" /> </div> {/* Desktop Logo (Icon only) */}
+             <h1 className="text-xl font-bold text-primary whitespace-nowrap overflow-hidden md:hidden">Architech AI</h1> {/* Mobile App Title */}
+
+
+            <Button variant="ghost" size="sm" onClick={() => {
+              fetchUserDesigns(); // Ensure designs are fresh
+              setIsMyDesignsDialogOpen(true);
+              setIsWelcomeBackDialogOpen(false); // Ensure welcome back is not open
+            }}>
+              <ListChecks className="mr-0 md:mr-2 h-4 w-4" /> <span className="hidden md:inline">My Designs</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleSaveDesign} disabled={isSavingDesign || !currentDesignId || (currentDesignName || "").endsWith("(Unsaved)")}>
+              {isSavingDesign ? (
+                <Loader2 className="mr-0 md:mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <SaveIcon className="mr-0 md:mr-2 h-4 w-4" />
+              )}
+              <span className="hidden md:inline">Save</span>
+            </Button>
+          </div>
+
+          {/* Center Section - Current Design Name (Desktop) */}
+          <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:block">
+            <h2 className="text-base font-medium text-foreground truncate max-w-xs lg:max-w-sm xl:max-w-md">
+              {currentDesignName || "Untitled Design"}
+            </h2>
+          </div>
+
+          {/* Right Section */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <UserCircle className="h-5 w-5" />
+                  <span className="sr-only">User Profile</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {currentUser && (
+                  <>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">Signed in as</p>
+                        <p className="text-xs leading-none text-muted-foreground truncate">
+                          {currentUser.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {/* <DropdownMenuItem>Profile (soon)</DropdownMenuItem> */}
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Settings2 className="h-5 w-5" />
+                   <span className="sr-only">Settings & Theme</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Theme</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {themeOptions.map((theme) => (
+                  <DropdownMenuItem
+                    key={theme.value}
+                    onClick={() => setTheme(theme.value)}
+                    className="cursor-pointer"
+                  >
+                    <theme.icon className="mr-2 h-4 w-4" />
+                    <span>{theme.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+
+        {/* Main Content Area (Canvas + Properties Panel) */}
         <ReactFlowProvider>
-          <div className="flex flex-1 min-h-0"> 
-            <main className={`flex-1 overflow-auto p-0 ${!isMobile && currentDesignName ? 'h-[calc(100vh-3.5rem-3rem)]' : 'h-[calc(100vh-3.5rem)]'} md:h-screen`}>
-                <DesignCanvas 
-                    ref={canvasRef} 
-                    onNodeSelect={handleNodeSelect} 
+          <div className="flex flex-1 min-h-0"> {/* This div will grow to fill remaining space */}
+            <main className="flex-1 overflow-auto p-0"> {/* Canvas area */}
+                <DesignCanvas
+                    ref={canvasRef}
+                    onNodeSelect={handleNodeSelect}
                     onStructuralChange={() => {
                         console.log("ArchitechApp: onStructuralChange called from DesignCanvas");
                         handleSetDiagramChanged(true);
@@ -1379,7 +1395,7 @@ function AppContent() {
               <aside className="w-80 border-l border-border bg-card hidden md:block">
                 <ScrollArea className="h-full">
                   <PropertiesPanel
-                    key={selectedNode.id} 
+                    key={selectedNode.id}
                     selectedNode={selectedNode}
                     componentConfig={selectedComponentConfig}
                     onUpdateNode={handleUpdateNodeProperties}
@@ -1424,32 +1440,36 @@ function AppContent() {
       />
 
       <WelcomeBackDialog
-        isOpen={isWelcomeBackDialogOpen}
+        isOpen={isWelcomeBackDialogOpen || isMyDesignsDialogOpen}
         onClose={() => {
             setIsWelcomeBackDialogOpen(false);
-            if (!currentDesignId && canvasRef.current) {
+            setIsMyDesignsDialogOpen(false);
+            if (!currentDesignId && canvasRef.current && !isMyDesignsDialogOpen) { // Only load defaults if it was true welcome back
                  canvasRef.current.loadTemplate(createDefaultNotes(), []);
                  setCanvasLoadedDesignId(null);
                  setCurrentDesignId(null);
-                 setCurrentDesignName(null); 
+                 setCurrentDesignName(null);
                  handleSetDiagramChanged(false);
             }
         }}
+        dialogType={isMyDesignsDialogOpen ? "myDesigns" : "welcomeBack"}
         designs={userDesigns}
         onLoadDesignClick={(designId, designName) => {
           handleLoadDesign(designId, designName);
           setIsWelcomeBackDialogOpen(false);
+          setIsMyDesignsDialogOpen(false);
         }}
         onCreateNewClick={() => {
           setIsWelcomeBackDialogOpen(false);
+          setIsMyDesignsDialogOpen(false);
           handleOpenNewDesignDialog(true);
         }}
       />
 
       {isNewDesignDialogOpen && (
         <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen && !currentDesignId && currentUser && canvasRef.current) { 
-                 if(!isWelcomeBackDialogOpen) { 
+            if (!isOpen && !currentDesignId && currentUser && canvasRef.current) {
+                 if(!isWelcomeBackDialogOpen && !isMyDesignsDialogOpen) {
                     canvasRef.current.loadTemplate(createDefaultNotes(), []);
                     setCanvasLoadedDesignId(null);
                     setCurrentDesignId(null);
@@ -1457,7 +1477,7 @@ function AppContent() {
                     handleSetDiagramChanged(false);
                  }
             }
-            if (!isOpen) setNewDesignNameInput(''); 
+            if (!isOpen) setNewDesignNameInput('');
             setIsNewDesignDialogOpen(isOpen);
         }}>
           <DialogContent>
@@ -1496,23 +1516,22 @@ function AppContent() {
 
 export function ArchitechApp() {
   const [isClient, setIsClient] = useState(false);
-  
+
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  if (!isClient) { 
+  if (!isClient) {
     return (
         <div className="flex h-screen items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
     );
   }
-  
+
   return (
     <SidebarProvider defaultOpen={true}>
       <AppContent />
     </SidebarProvider>
   );
 }
-

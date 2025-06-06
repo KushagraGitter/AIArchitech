@@ -13,7 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const themes = [
+// Exporting themes array for reuse
+export const themes = [
   { name: "Light", value: "light", icon: Sun },
   { name: "Dark", value: "dark", icon: Moon },
   { name: "Ocean", value: "theme-ocean", icon: Palette },
