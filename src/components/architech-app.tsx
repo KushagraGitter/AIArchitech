@@ -19,53 +19,23 @@ import {
   orderBy,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase'; // Firestore instance
+import { db } from '@/lib/firebase'; 
 
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Form, FormControl, FormField, FormItem, FormLabel as ShadFormLabel, FormMessage } from '@/components/ui/form';
+
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, LogOut, UserCircle, AlertCircle, SaveIcon, ListChecks, Hand, Menu, Upload, Download } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Loader2, MessageSquarePlus, StickyNote, Shuffle, Waypoints, Server, Database, Zap, GitFork, Cloud, ShieldCheck, Box, BarChartBig, Users, MessageSquare, Link2, ServerCog, Smartphone, Globe } from 'lucide-react';
 
-
-import {
-  Sidebar,
-  SidebarProvider,
-  SidebarHeader,
-  SidebarContent as ShadSidebarContent,
-  SidebarFooter,
-  SidebarInset,
-  SidebarTrigger,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarGroup,
-  SidebarGroupLabel,
-  useSidebar,
-} from '@/components/ui/sidebar';
-
-import { Logo } from '@/components/logo';
 import { DesignCanvas, type DesignCanvasHandles, type NodeData } from '@/components/design-canvas';
 import { PropertiesPanel, type ComponentConfig } from '@/components/properties-panel';
 import type { EvaluateSystemDesignInput, EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 import { evaluateSystemDesign } from '@/ai/flows/evaluate-system-design';
-import { Separator } from './ui/separator';
-import { themes as themeOptions } from '@/components/theme-toggle-button'; // Import theme definitions
+import { themes as themeOptions, type ThemeOption } from '@/components/theme-toggle-button'; 
 import { ChatBotWindow, type ChatMessage } from '@/components/chat-bot-window';
 import type { InterviewBotInput } from '@/ai/flows/interview-bot-flow';
 import { interviewBot } from '@/ai/flows/interview-bot-flow';
@@ -73,17 +43,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { WelcomeBackDialog } from '@/components/welcome-back-dialog';
 import { useTheme } from "next-themes";
 
+import { AuthSection } from './auth-section';
+import { AppSidebar } from './app-sidebar';
+import { TopNavigationBar } from './top-navigation-bar';
+
 
 const formSchema = z.object({
-  // These fields will be populated from canvas nodes now
+  // Minimal schema, actual fields are dynamic
 });
 type FormValues = z.infer<typeof formSchema>;
 
-const authFormSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-});
-type AuthFormValues = z.infer<typeof authFormSchema>;
 
 export interface UserDesign {
   id: string;
@@ -145,8 +114,8 @@ export const designComponents: ComponentConfig[] = [
   },
   {
     name: "App Server",
-    icon: Puzzle,
-    iconName: "Puzzle",
+    icon: ServerCog, // Changed from Puzzle to ServerCog for consistency with another usage
+    iconName: "ServerCog", // Should match icon change
     initialProperties: { language: "Node.js", framework: "Express", instanceType: "m5.large", scaling: "auto-scaling group", minInstances: 2, maxInstances: 10 },
     configurableProperties: [
       { id: 'language', label: 'Language', type: 'select', options: ["Node.js", "Python", "Java", "Go", "Ruby", ".NET", "PHP"] },
@@ -242,8 +211,8 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
         { id: 'sa_req_1', type: 'custom', position: { x: -100, y: -50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Feature Requirements', content: 'Design a scalable API for a social media application. Focus on read-heavy workloads for user timelines.'} } },
         { id: 'sa_bote_1', type: 'custom', position: { x: 300, y: -50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'BOTE Calculations', content: '1M DAU\n100 reads/user/day\n10 writes/user/day\nRead QPS: ~1k (avg), ~10k (peak)\nWrite QPS: ~100 (avg), ~1k (peak)'} } },
         { id: 'sa_apigw_1', type: 'custom', position: { x: 100, y: 50 }, data: { label: 'API Gateway', iconName: 'Waypoints', properties: designComponents.find(c => c.name === "API Gateway")?.initialProperties || {} } },
-        { id: 'sa_app_1', type: 'custom', position: { x: 0, y: 200 }, data: { label: 'App Server', iconName: 'Puzzle', properties: designComponents.find(c => c.name === "App Server")?.initialProperties || {} } },
-        { id: 'sa_app_2', type: 'custom', position: { x: 200, y: 200 }, data: { label: 'App Server', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), instanceId: '2'} } },
+        { id: 'sa_app_1', type: 'custom', position: { x: 0, y: 200 }, data: { label: 'App Server', iconName: 'ServerCog', properties: designComponents.find(c => c.name === "App Server")?.initialProperties || {} } },
+        { id: 'sa_app_2', type: 'custom', position: { x: 200, y: 200 }, data: { label: 'App Server', iconName: 'ServerCog', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), instanceId: '2'} } },
         { id: 'sa_db_primary_1', type: 'custom', position: { x: 0, y: 350 }, data: { label: 'Database (Primary)', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: 'primary'} } },
         { id: 'sa_db_replica_1', type: 'custom', position: { x: 200, y: 350 }, data: { label: 'Database (Replica)', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: 'replica-read', replicationSourceId: 'sa_db_primary_1'} } },
     ],
@@ -308,7 +277,7 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
     name: "Sharded Database System",
     nodes: [
       { id: 'shard_req_1', type: 'custom', position: { x: -150, y: 100 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Scenario', content: 'Design the database sharding for a system with a very large number of users (e.g., 1 billion users), where user data needs to be partitioned.'} } },
-      { id: 'shard_app_1', type: 'custom', position: { x: 50, y: 200 }, data: { label: 'App Server', iconName: 'Puzzle', properties: designComponents.find(c => c.name === "App Server")?.initialProperties || {} } },
+      { id: 'shard_app_1', type: 'custom', position: { x: 50, y: 200 }, data: { label: 'App Server', iconName: 'ServerCog', properties: designComponents.find(c => c.name === "App Server")?.initialProperties || {} } },
       { id: 'shard_router_1', type: 'custom', position: { x: 250, y: 200 }, data: { label: 'DB Router/Coordinator', iconName: 'ServerCog', properties: designComponents.find(c => c.name === "DB Router/Coordinator")?.initialProperties || {} } },
       { id: 'shard_db1_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'DB Shard 1', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: "shard-primary", shardingStrategy: "hash-based", shardKey: "user_id", type: "MySQL", custom: {shard_info: "Shard 1 (e.g., UserIDs ending 0-4)"}} } },
       { id: 'shard_db2_1', type: 'custom', position: { x: 450, y: 200 }, data: { label: 'DB Shard 2', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), role: "shard-primary", shardingStrategy: "hash-based", shardKey: "user_id", type: "MySQL", custom: {shard_info: "Shard 2 (e.g., UserIDs ending 5-9)"}} } },
@@ -327,8 +296,8 @@ const initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }
       { id: 'mq_req_1', type: 'custom', position: { x: -150, y: 50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Scenario', content: 'Design a system for asynchronous order processing. When an order is placed, events need to be reliably sent to notification and inventory services.'} } },
       { id: 'mq_producer_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'Producer Service', iconName: 'Server', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Order Processing", event_type: "OrderCreatedEvent"}} } },
       { id: 'mq_queue_1', type: 'custom', position: { x: 250, y: 150 }, data: { label: 'Message Queue', iconName: 'GitFork', properties: designComponents.find(c => c.name === "Message Queue")?.initialProperties || {} } },
-      { id: 'mq_consumer1_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'Consumer (Notifications)', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Notification Sending", processing_logic: "Send email/SMS"}} } },
-      { id: 'mq_consumer2_1', type: 'custom', position: { x: 450, y: 250 }, data: { label: 'Consumer (Inventory)', iconName: 'Puzzle', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Inventory Update", processing_logic: "Decrement stock count"}} } },
+      { id: 'mq_consumer1_1', type: 'custom', position: { x: 450, y: 50 }, data: { label: 'Consumer (Notifications)', iconName: 'ServerCog', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Notification Sending", processing_logic: "Send email/SMS"}} } },
+      { id: 'mq_consumer2_1', type: 'custom', position: { x: 450, y: 250 }, data: { label: 'Consumer (Inventory)', iconName: 'ServerCog', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Inventory Update", processing_logic: "Decrement stock count"}} } },
       { id: 'mq_db_notify_1', type: 'custom', position: { x: 650, y: 50 }, data: { label: 'Notification Log DB', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "MongoDB", custom: {use: "Notification Logs", access_pattern: "Write-heavy, append-only"}} } },
       { id: 'mq_db_inventory_1', type: 'custom', position: { x: 650, y: 250 }, data: { label: 'Inventory DB', iconName: 'Database', properties: {...(designComponents.find(c => c.name === "Database")?.initialProperties || {}), type: "MySQL", custom: {use: "Product Inventory", access_pattern: "Transactional updates"}} } },
     ],
@@ -379,95 +348,6 @@ const createDefaultNotes = (): Node<NodeData>[] => {
 };
 
 
-function AuthSection() {
-  const { signup, login, error: authError, loading: authLoading, clearError } = useAuth();
-  const [isLoginMode, setIsLoginMode] = useState(true);
-
-  const authForm = useForm<AuthFormValues>({
-    resolver: zodResolver(authFormSchema),
-    defaultValues: { email: "", password: "" },
-  });
-
-  const handleAuthSubmit = async (values: AuthFormValues) => {
-    clearError();
-    if (isLoginMode) {
-      await login(values.email, values.password);
-    } else {
-      await signup(values.email, values.password);
-    }
-  };
-
-  useEffect(() => {
-    authForm.reset();
-    clearError();
-  }, [isLoginMode, authForm, clearError]);
-
-
-  return (
-    <div className="w-full flex flex-col items-center justify-center min-h-screen bg-background p-4">
-      <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <Logo variant="full" />
-          </div>
-          <CardTitle className="text-2xl">{isLoginMode ? "Welcome Back!" : "Create Account"}</CardTitle>
-          <CardDescription>
-            {isLoginMode ? "Sign in to continue to Architech AI." : "Sign up to start designing."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...authForm}>
-            <form onSubmit={authForm.handleSubmit(handleAuthSubmit)} className="space-y-6">
-              <FormField
-                control={authForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <ShadFormLabel>Email</ShadFormLabel>
-                    <FormControl>
-                      <Input placeholder="you@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={authForm.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <ShadFormLabel>Password</ShadFormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {authError && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Authentication Error</AlertTitle>
-                  <AlertDescription>{authError}</AlertDescription>
-                </Alert>
-              )}
-              <Button type="submit" className="w-full" disabled={authLoading}>
-                {authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (isLoginMode ? "Login" : "Sign Up")}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-        <CardFooter className="flex flex-col items-center">
-          <Button variant="link" onClick={() => setIsLoginMode(!isLoginMode)} className="text-sm">
-            {isLoginMode ? "Don't have an account? Sign Up" : "Already have an account? Login"}
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
-  );
-}
-
-
 function AppContent() {
   const [isLoadingEvaluation, setIsLoadingEvaluation] = useState(false);
   const [isSavingDesign, setIsSavingDesign] = useState(false);
@@ -475,7 +355,6 @@ function AppContent() {
   const [aiFeedback, setAiFeedback] = useState<EvaluateSystemDesignOutput | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
   const { toast } = useToast();
-  const { state: sidebarState, isMobile } = useSidebar();
   const canvasRef = useRef<DesignCanvasHandles>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
 
@@ -666,35 +545,31 @@ function AppContent() {
         return;
       }
 
-      await fetchUserDesigns(); // Fetch designs first
+      await fetchUserDesigns(); 
 
       const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-      let activeDesignIdentifiedFromStorage = false;
-
+      
       if (storedActiveDesignId && storedActiveDesignName) {
         console.log("Found active design in localStorage:", storedActiveDesignId, storedActiveDesignName);
-        // Set as current design context
         setCurrentDesignId(storedActiveDesignId);
         setCurrentDesignName(storedActiveDesignName);
-        activeDesignIdentifiedFromStorage = true;
-        // The canvas sync effect will handle loading it to the canvas
-        setInitialDialogFlowPending(false); // Don't show welcome dialogs if we have an active design
+        setInitialDialogFlowPending(false); 
       } else {
         console.log("No active design in localStorage.");
         if (!currentDesignId && canvasRef.current) {
              console.log("No currentDesignId and no localStorage design, loading default notes.");
              canvasRef.current.loadTemplate(createDefaultNotes(), []);
-             setCanvasLoadedDesignId(null); // Ensure canvas state matches no loaded design
+             setCanvasLoadedDesignId(null); 
              handleSetDiagramChanged(false);
         }
-        setInitialDialogFlowPending(true); // Proceed to dialog flow if no active design from storage
+        setInitialDialogFlowPending(true); 
       }
     };
 
     initializeAppForUser();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]); // Re-run only when currentUser changes
+  }, [currentUser]); 
 
 
   useEffect(() => {
@@ -710,7 +585,7 @@ function AppContent() {
           setCurrentDesignId(null);
           setCurrentDesignName(null);
           setCanvasLoadedDesignId(null);
-          setInitialDialogFlowPending(true); // Re-trigger dialog flow
+          setInitialDialogFlowPending(true); 
           if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
         } else {
              console.log(`Canvas Sync: handleLoadDesign for ${currentDesignId} completed.`);
@@ -720,7 +595,7 @@ function AppContent() {
     };
     syncCanvas();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentDesignId, currentDesignName, canvasRef.current, canvasLoadedDesignId]); // React to these changes
+  }, [currentDesignId, currentDesignName, canvasRef.current, canvasLoadedDesignId]); 
 
 
   useEffect(() => {
@@ -750,12 +625,12 @@ function AppContent() {
       setAiFeedback(null);
       setChatMessages([]);
 
-      setCurrentDesignId(null); // This is a template, not a saved design
+      setCurrentDesignId(null); 
       setCurrentDesignName(`${templateName} (Unsaved)`);
-      setCanvasLoadedDesignId(null); // Canvas now has a generic template
+      setCanvasLoadedDesignId(null); 
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-      handleSetDiagramChanged(false); // A template load is a "clean" state
+      handleSetDiagramChanged(false); 
 
 
        toast({
@@ -783,7 +658,7 @@ function AppContent() {
 
     setCurrentDesignId(newId);
     setCurrentDesignName(name);
-    setCanvasLoadedDesignId(newId); // Canvas will show this new design
+    setCanvasLoadedDesignId(newId); 
 
     localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, newId);
     localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, name);
@@ -799,7 +674,7 @@ function AppContent() {
     setIsWelcomeBackDialogOpen(false);
     setIsMyDesignsDialogOpen(false);
     setNewDesignNameInput('');
-    handleSetDiagramChanged(false); // New design is a clean state
+    handleSetDiagramChanged(false); 
     toast({
       title: "New Design Ready",
       description: `Design "${name}" has been created. Save it to keep your work.`,
@@ -838,7 +713,7 @@ function AppContent() {
 
       toast({ title: "Design Saved!", description: `"${currentDesignName}" has been saved successfully.` });
       handleSetDiagramChanged(false);
-      setCanvasLoadedDesignId(currentDesignId); // Ensure canvas and active ID match
+      setCanvasLoadedDesignId(currentDesignId); 
       fetchUserDesigns();
     } catch (error) {
       console.error("Error saving design:", error);
@@ -919,7 +794,7 @@ function AppContent() {
     return { designDiagramJson, extractedRequirements, extractedBoteCalculations };
   };
 
-  const onSubmit: SubmitHandler<FormValues> = async (_formData) => {
+  const onSubmitEvaluation: SubmitHandler<FormValues> = async (_formData) => {
     if (!currentUser) {
         toast({
             title: "Login Required",
@@ -1052,7 +927,7 @@ function AppContent() {
           await setDoc(designRef, designData, { merge: true });
           console.log(`Autosave: Successfully saved ${currentDesignId}`);
           handleSetDiagramChanged(false);
-          setCanvasLoadedDesignId(currentDesignId); // Update canvas loaded ID on successful autosave
+          setCanvasLoadedDesignId(currentDesignId); 
         } catch (error) {
           console.error("Autosave: Error saving design:", currentDesignId, error);
           toast({
@@ -1115,22 +990,21 @@ function AppContent() {
         }
         const parsedData = JSON.parse(content);
 
-        // Basic validation
         if (!parsedData || typeof parsedData !== 'object' || !Array.isArray(parsedData.nodes) || !Array.isArray(parsedData.edges)) {
           throw new Error("Invalid JSON format. 'nodes' and 'edges' arrays are required.");
         }
-        // Add more specific validation for node/edge structure if needed
+        
 
         if (canvasRef.current) {
           canvasRef.current.loadTemplate(parsedData.nodes, parsedData.edges);
           
           const newName = `Imported - ${file.name.replace(/\.json$/i, '')} (Unsaved)`;
           setCurrentDesignName(newName);
-          setCurrentDesignId(null); // Treat as a new, unsaved design
+          setCurrentDesignId(null); 
           setCanvasLoadedDesignId(null); 
           localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
           localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-          handleSetDiagramChanged(false); // Imported design is a clean state initially
+          handleSetDiagramChanged(false); 
           setSelectedNode(null);
           setAiFeedback(null);
           setChatMessages([]);
@@ -1145,7 +1019,7 @@ function AppContent() {
           variant: "destructive",
         });
       } finally {
-        // Reset file input to allow importing the same file again if needed
+        
         if (importFileRef.current) {
           importFileRef.current.value = "";
         }
@@ -1176,288 +1050,43 @@ function AppContent() {
 
   return (
     <>
-      <Sidebar variant="inset" collapsible="icon">
-        <SidebarHeader className="p-0">
-        </SidebarHeader>
-        <ShadSidebarContent className="p-0">
-          <ScrollArea className="h-full">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0">
-                <Accordion type="multiple" defaultValue={["components-accordion", "templates-accordion"]} className="w-full">
-                  <AccordionItem value="components-accordion" className="border-none">
-                    <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
-                      <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
-                        <Box className="h-4 w-4" /> Components
-                      </SidebarGroupLabel>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-1 pb-0">
-                      <SidebarGroup className="p-2 pt-0">
-                        <SidebarMenu>
-                          {designComponents.map((component) => (
-                            <SidebarMenuItem key={component.name}>
-                              <SidebarMenuButton
-                                draggable={true}
-                                onDragStart={(event) => onDragStart(event, component.name, component.iconName, component.initialProperties)}
-                                className="text-sm cursor-grab"
-                                tooltip={component.name}
-                              >
-                                <component.icon className="h-4 w-4" />
-                                <span>{component.name}</span>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                          ))}
-                        </SidebarMenu>
-                      </SidebarGroup>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="templates-accordion" className="border-none">
-                    <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
-                      <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
-                        <Layers className="h-4 w-4" /> Templates
-                      </SidebarGroupLabel>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-1 pb-0">
-                      <SidebarGroup className="p-2 pt-0">
-                        <SidebarMenu>
-                          {initialTemplates.map((template) => (
-                            <SidebarMenuItem key={template.name}>
-                              <SidebarMenuButton
-                                onClick={() => loadTemplate(template.nodes, template.edges, template.name)}
-                                className="text-sm"
-                                tooltip={`Load ${template.name} template`}
-                              >
-                                <Layers className="h-4 w-4" />
-                                <span>{template.name}</span>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                          ))}
-                        </SidebarMenu>
-                      </SidebarGroup>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-
-                <Separator className="my-2" />
-                <SidebarGroup className="p-2 space-y-2">
-                   <Button type="button" variant="secondary" className="w-full" onClick={handleNewDesignButtonClick}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      New Design
-                    </Button>
-                  <Button type="submit" className="w-full" disabled={isLoadingEvaluation}>
-                    {isLoadingEvaluation ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="mr-2 h-4 w-4" />
-                    )}
-                    Evaluate Design
-                  </Button>
-                </SidebarGroup>
-              </form>
-            </Form>
-
-            {isLoadingEvaluation && (
-              <Card className="m-4 shadow-none border-dashed">
-                <CardContent className="p-6 flex flex-col items-center justify-center">
-                  <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                  <p className="text-muted-foreground">AI is analyzing your design...</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {aiFeedback && !isLoadingEvaluation && (
-              <>
-              <Separator className="my-2" />
-              <SidebarGroup className="p-2">
-                <SidebarGroupLabel className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" /> AI Feedback
-                </SidebarGroupLabel>
-                <Card className="shadow-none bg-card mt-2">
-                  <CardHeader className="pb-2 pt-4 px-4">
-                    <CardTitle className="text-base">Overall Assessment</CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-3 text-sm text-muted-foreground">
-                     {aiFeedback.overallAssessment || "No overall assessment provided."}
-                  </CardContent>
-                </Card>
-                <Card className="shadow-none bg-card mt-2">
-                  <CardContent className="p-0">
-                    <Accordion type="multiple" className="w-full" defaultValue={["strengths"]}>
-                       <AccordionItem value="strengths">
-                        <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">Identified Strengths</AccordionTrigger>
-                        <AccordionContent className="px-4 pb-3 text-sm text-muted-foreground">
-                          {aiFeedback.identifiedStrengths && aiFeedback.identifiedStrengths.length > 0 ? (
-                            <ul className="list-disc pl-5 space-y-1">
-                              {aiFeedback.identifiedStrengths.map((item, idx) => <li key={`strength-${idx}`}>{item}</li>)}
-                            </ul>
-                          ) : "No specific strengths identified."}
-                        </AccordionContent>
-                      </AccordionItem>
-                       <AccordionItem value="suggestions">
-                        <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">General Suggestions</AccordionTrigger>
-                        <AccordionContent className="px-4 pb-3 text-sm text-muted-foreground">
-                           {aiFeedback.suggestionsForImprovement && aiFeedback.suggestionsForImprovement.length > 0 ? (
-                            <ul className="list-disc pl-5 space-y-1">
-                              {aiFeedback.suggestionsForImprovement.map((item, idx) => <li key={`suggestion-${idx}`}>{item}</li>)}
-                            </ul>
-                          ) : "No general suggestions provided."}
-                        </AccordionContent>
-                      </AccordionItem>
-                      {[
-                        {id: 'complexity', label: 'Complexity', data: aiFeedback.complexity},
-                        {id: 'scalability', label: 'Scalability', data: aiFeedback.scalability},
-                        {id: 'availability', label: 'Availability', data: aiFeedback.availability},
-                        {id: 'faultTolerance', label: 'Fault Tolerance', data: aiFeedback.faultTolerance},
-                        {id: 'costEfficiency', label: 'Cost Efficiency', data: aiFeedback.costEfficiency},
-                        {id: 'security', label: 'Security', data: aiFeedback.security},
-                        {id: 'maintainability', label: 'Maintainability', data: aiFeedback.maintainability},
-                      ].map(criterion => (
-                        criterion.data &&
-                        <AccordionItem value={criterion.id} key={criterion.id}>
-                          <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">
-                            {criterion.label}: <span className="ml-1 font-semibold text-primary">{criterion.data.rating}</span>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-4 pb-3 text-sm text-muted-foreground space-y-2">
-                            <p>{criterion.data.explanation}</p>
-                            {criterion.data.specificRecommendations && criterion.data.specificRecommendations.length > 0 && (
-                              <div>
-                                <h4 className="font-semibold text-card-foreground mb-1">Recommendations:</h4>
-                                <ul className="list-disc pl-5 space-y-1">
-                                  {criterion.data.specificRecommendations.map((rec, idx) => <li key={`${criterion.id}-rec-${idx}`}>{rec}</li>)}
-                                </ul>
-                              </div>
-                            )}
-                          </AccordionContent>
-                        </AccordionItem>
-                      ))}
-                      {aiFeedback.calculationReview && (
-                        <AccordionItem value="calculationReview">
-                          <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">Calculation Review</AccordionTrigger>
-                          <AccordionContent className="px-4 pb-3 text-sm text-muted-foreground">
-                            <p>{aiFeedback.calculationReview}</p>
-                          </AccordionContent>
-                        </AccordionItem>
-                      )}
-                       <AccordionItem value="risks">
-                        <AccordionTrigger className="px-4 py-3 text-sm hover:no-underline">Potential Risks</AccordionTrigger>
-                        <AccordionContent className="px-4 pb-3 text-sm text-muted-foreground">
-                          {aiFeedback.potentialRisks && aiFeedback.potentialRisks.length > 0 ? (
-                            <ul className="list-disc pl-5 space-y-1">
-                              {aiFeedback.potentialRisks.map((item, idx) => <li key={`risk-${idx}`}>{item}</li>)}
-                            </ul>
-                          ) : "No potential risks identified."}
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  </CardContent>
-                </Card>
-              </SidebarGroup>
-              </>
-            )}
-          </ScrollArea>
-        </ShadSidebarContent>
-        <SidebarFooter className="p-2 border-t border-sidebar-border flex items-center group-data-[collapsible=icon]:justify-center">
-        </SidebarFooter>
-      </Sidebar>
-
+      <AppSidebar
+        form={form}
+        onSubmit={onSubmitEvaluation}
+        isLoadingEvaluation={isLoadingEvaluation}
+        aiFeedback={aiFeedback}
+        designComponents={designComponents}
+        initialTemplates={initialTemplates}
+        onDragStart={onDragStart}
+        onLoadTemplate={loadTemplate}
+        onNewDesignButtonClick={handleNewDesignButtonClick}
+      />
+      
       <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col">
-        <div className="h-14 flex items-center justify-between px-4 border-b bg-card text-card-foreground sticky top-0 z-30">
-          <div className="flex items-center gap-1 sm:gap-2">
-            <SidebarTrigger className="md:hidden -ml-2" /> 
-            <div className="hidden md:flex items-center"> <Logo variant="icon" /> </div> 
-             <h1 className="text-xl font-bold text-primary whitespace-nowrap overflow-hidden md:hidden">Architech AI</h1> 
-
-            <Button variant="ghost" size="sm" onClick={() => {
-              fetchUserDesigns(); 
-              setIsMyDesignsDialogOpen(true);
-              setIsWelcomeBackDialogOpen(false); 
-            }}>
-              <ListChecks className="mr-0 md:mr-2 h-4 w-4" /> <span className="hidden md:inline">My Designs</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleSaveDesign} disabled={isSavingDesign || !currentDesignId || (currentDesignName || "").endsWith("(Unsaved)")}>
-              {isSavingDesign ? (
-                <Loader2 className="mr-0 md:mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <SaveIcon className="mr-0 md:mr-2 h-4 w-4" />
-              )}
-              <span className="hidden md:inline">Save</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleExportDesign} title="Export Design as JSON">
-                <Download className="mr-0 md:mr-2 h-4 w-4" />
-                <span className="hidden md:inline">Export</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => importFileRef.current?.click()} title="Import Design from JSON">
-                <Upload className="mr-0 md:mr-2 h-4 w-4" />
-                <span className="hidden md:inline">Import</span>
-            </Button>
-            <input 
-                type="file" 
-                ref={importFileRef} 
-                onChange={handleImportFileChange} 
-                accept=".json" 
-                className="hidden"
-            />
-          </div>
-
-          <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:block">
-            <h2 className="text-base font-medium text-foreground truncate max-w-xs lg:max-w-sm xl:max-w-md">
-              {currentDesignName || "Untitled Design"}
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-1 sm:gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <UserCircle className="h-5 w-5" />
-                  <span className="sr-only">User Profile</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {currentUser && (
-                  <>
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">Signed in as</p>
-                        <p className="text-xs leading-none text-muted-foreground truncate">
-                          {currentUser.email}
-                        </p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Log out</span>
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <Settings2 className="h-5 w-5" />
-                   <span className="sr-only">Settings & Theme</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Theme</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {themeOptions.map((theme) => (
-                  <DropdownMenuItem
-                    key={theme.value}
-                    onClick={() => setTheme(theme.value)}
-                    className="cursor-pointer"
-                  >
-                    <theme.icon className="mr-2 h-4 w-4" />
-                    <span>{theme.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
+        <TopNavigationBar
+          currentDesignName={currentDesignName}
+          currentUser={currentUser}
+          isSavingDesign={isSavingDesign}
+          onMyDesignsClick={() => {
+            fetchUserDesigns();
+            setIsMyDesignsDialogOpen(true);
+            setIsWelcomeBackDialogOpen(false);
+          }}
+          onSaveDesign={handleSaveDesign}
+          canSave={!!currentDesignId && !(currentDesignName || "").endsWith("(Unsaved)")}
+          onExportDesign={handleExportDesign}
+          onImportDesignClick={() => importFileRef.current?.click()}
+          onLogout={handleLogout}
+          themes={themeOptions as ThemeOption[]} // Cast if themeOptions comes from a mutable source
+          setTheme={setTheme}
+        />
+         <input 
+            type="file" 
+            ref={importFileRef} 
+            onChange={handleImportFileChange} 
+            accept=".json" 
+            className="hidden"
+        />
 
 
         <ReactFlowProvider>
@@ -1616,3 +1245,4 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
+
