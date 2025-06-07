@@ -31,7 +31,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Form, FormControl, FormField, FormItem, FormLabel as ShadFormLabel, FormMessage } from '@/components/ui/form';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, LogOut, UserCircle, AlertCircle, SaveIcon, ListChecks, Hand, Menu } from 'lucide-react';
+import { Loader2, Sparkles, Server, Database, Waypoints, ShieldCheck, Cloud, Zap, Box, Shuffle, Puzzle, BarChartBig, GitFork, Layers, Settings2, MessageSquare, Link2, ServerCog, Users, Smartphone, Globe, StickyNote, FileText, MessageSquarePlus, LogOut, UserCircle, AlertCircle, SaveIcon, ListChecks, Hand, Menu, Upload, Download } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   DropdownMenu,
@@ -477,6 +477,7 @@ function AppContent() {
   const { toast } = useToast();
   const { state: sidebarState, isMobile } = useSidebar();
   const canvasRef = useRef<DesignCanvasHandles>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -489,7 +490,7 @@ function AppContent() {
   const [userDesigns, setUserDesigns] = useState<UserDesign[]>([]);
 
   const [isWelcomeBackDialogOpen, setIsWelcomeBackDialogOpen] = useState(false);
-  const [isMyDesignsDialogOpen, setIsMyDesignsDialogOpen] = useState(false); // New state for "My Designs"
+  const [isMyDesignsDialogOpen, setIsMyDesignsDialogOpen] = useState(false); 
   const [initialDialogFlowPending, setInitialDialogFlowPending] = useState(false);
 
   const [diagramChangedSinceLastSave, setDiagramChangedSinceLastSave] = useState(false);
@@ -665,40 +666,35 @@ function AppContent() {
         return;
       }
 
-      setInitialDialogFlowPending(true);
-      await fetchUserDesigns();
+      await fetchUserDesigns(); // Fetch designs first
 
       const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-
       let activeDesignIdentifiedFromStorage = false;
 
       if (storedActiveDesignId && storedActiveDesignName) {
         console.log("Found active design in localStorage:", storedActiveDesignId, storedActiveDesignName);
-        if (currentDesignId !== storedActiveDesignId) {
-            setCurrentDesignId(storedActiveDesignId);
-            setCurrentDesignName(storedActiveDesignName);
-        }
+        // Set as current design context
+        setCurrentDesignId(storedActiveDesignId);
+        setCurrentDesignName(storedActiveDesignName);
         activeDesignIdentifiedFromStorage = true;
-        setInitialDialogFlowPending(false);
+        // The canvas sync effect will handle loading it to the canvas
+        setInitialDialogFlowPending(false); // Don't show welcome dialogs if we have an active design
       } else {
         console.log("No active design in localStorage.");
         if (!currentDesignId && canvasRef.current) {
              console.log("No currentDesignId and no localStorage design, loading default notes.");
              canvasRef.current.loadTemplate(createDefaultNotes(), []);
-             setCanvasLoadedDesignId(null);
+             setCanvasLoadedDesignId(null); // Ensure canvas state matches no loaded design
              handleSetDiagramChanged(false);
         }
-      }
-
-      if (!activeDesignIdentifiedFromStorage) {
-        console.log("No design identified from storage, initialDialogFlowPending remains true for dialogs.");
+        setInitialDialogFlowPending(true); // Proceed to dialog flow if no active design from storage
       }
     };
 
     initializeAppForUser();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
+  }, [currentUser]); // Re-run only when currentUser changes
 
 
   useEffect(() => {
@@ -714,7 +710,7 @@ function AppContent() {
           setCurrentDesignId(null);
           setCurrentDesignName(null);
           setCanvasLoadedDesignId(null);
-          setInitialDialogFlowPending(true);
+          setInitialDialogFlowPending(true); // Re-trigger dialog flow
           if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
         } else {
              console.log(`Canvas Sync: handleLoadDesign for ${currentDesignId} completed.`);
@@ -724,7 +720,7 @@ function AppContent() {
     };
     syncCanvas();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentDesignId, currentDesignName, canvasRef.current, canvasLoadedDesignId]);
+  }, [currentDesignId, currentDesignName, canvasRef.current, canvasLoadedDesignId]); // React to these changes
 
 
   useEffect(() => {
@@ -754,12 +750,12 @@ function AppContent() {
       setAiFeedback(null);
       setChatMessages([]);
 
-      setCurrentDesignId(null);
+      setCurrentDesignId(null); // This is a template, not a saved design
       setCurrentDesignName(`${templateName} (Unsaved)`);
-      setCanvasLoadedDesignId(null);
+      setCanvasLoadedDesignId(null); // Canvas now has a generic template
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-      handleSetDiagramChanged(false);
+      handleSetDiagramChanged(false); // A template load is a "clean" state
 
 
        toast({
@@ -787,7 +783,7 @@ function AppContent() {
 
     setCurrentDesignId(newId);
     setCurrentDesignName(name);
-    setCanvasLoadedDesignId(newId);
+    setCanvasLoadedDesignId(newId); // Canvas will show this new design
 
     localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, newId);
     localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, name);
@@ -803,7 +799,7 @@ function AppContent() {
     setIsWelcomeBackDialogOpen(false);
     setIsMyDesignsDialogOpen(false);
     setNewDesignNameInput('');
-    handleSetDiagramChanged(false);
+    handleSetDiagramChanged(false); // New design is a clean state
     toast({
       title: "New Design Ready",
       description: `Design "${name}" has been created. Save it to keep your work.`,
@@ -842,7 +838,7 @@ function AppContent() {
 
       toast({ title: "Design Saved!", description: `"${currentDesignName}" has been saved successfully.` });
       handleSetDiagramChanged(false);
-      setCanvasLoadedDesignId(currentDesignId);
+      setCanvasLoadedDesignId(currentDesignId); // Ensure canvas and active ID match
       fetchUserDesigns();
     } catch (error) {
       console.error("Error saving design:", error);
@@ -1056,7 +1052,7 @@ function AppContent() {
           await setDoc(designRef, designData, { merge: true });
           console.log(`Autosave: Successfully saved ${currentDesignId}`);
           handleSetDiagramChanged(false);
-          setCanvasLoadedDesignId(currentDesignId);
+          setCanvasLoadedDesignId(currentDesignId); // Update canvas loaded ID on successful autosave
         } catch (error) {
           console.error("Autosave: Error saving design:", currentDesignId, error);
           toast({
@@ -1085,6 +1081,85 @@ function AppContent() {
     };
   }, [diagramChangedSinceLastSave, currentUser, currentDesignId, currentDesignName, toast, isSavingDesign, handleSetDiagramChanged]);
 
+  const handleExportDesign = () => {
+    if (!canvasRef.current) {
+      toast({ title: "Error", description: "Canvas not available for export.", variant: "destructive" });
+      return;
+    }
+    const diagramJson = canvasRef.current.getDiagramJson();
+    const blob = new Blob([diagramJson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const fileName = currentDesignName ? `${currentDesignName.replace(/\s+/g, '_').replace(/\(Unsaved\)/i, '').replace(/[^a-z0-9_.-]/gi, '') || 'design'}.json` : 'architech-design.json';
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: `Design exported as ${fileName}` });
+  };
+
+  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result;
+        if (typeof content !== 'string') {
+          throw new Error("Failed to read file content.");
+        }
+        const parsedData = JSON.parse(content);
+
+        // Basic validation
+        if (!parsedData || typeof parsedData !== 'object' || !Array.isArray(parsedData.nodes) || !Array.isArray(parsedData.edges)) {
+          throw new Error("Invalid JSON format. 'nodes' and 'edges' arrays are required.");
+        }
+        // Add more specific validation for node/edge structure if needed
+
+        if (canvasRef.current) {
+          canvasRef.current.loadTemplate(parsedData.nodes, parsedData.edges);
+          
+          const newName = `Imported - ${file.name.replace(/\.json$/i, '')} (Unsaved)`;
+          setCurrentDesignName(newName);
+          setCurrentDesignId(null); // Treat as a new, unsaved design
+          setCanvasLoadedDesignId(null); 
+          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+          handleSetDiagramChanged(false); // Imported design is a clean state initially
+          setSelectedNode(null);
+          setAiFeedback(null);
+          setChatMessages([]);
+
+          toast({ title: "Import Successful", description: `"${file.name}" loaded. Save to keep changes.` });
+        }
+      } catch (error) {
+        console.error("Error importing design:", error);
+        toast({
+          title: "Import Failed",
+          description: `Could not import design. ${error instanceof Error ? error.message : "Invalid file format."}`,
+          variant: "destructive",
+        });
+      } finally {
+        // Reset file input to allow importing the same file again if needed
+        if (importFileRef.current) {
+          importFileRef.current.value = "";
+        }
+      }
+    };
+    reader.onerror = () => {
+      toast({ title: "File Read Error", description: "Could not read the selected file.", variant: "destructive" });
+       if (importFileRef.current) {
+          importFileRef.current.value = "";
+        }
+    };
+    reader.readAsText(file);
+  };
+
 
   if (authLoading && !currentUser) {
     return (
@@ -1103,7 +1178,6 @@ function AppContent() {
     <>
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader className="p-0">
-           {/* Logo removed from sidebar header, will be in top nav */}
         </SidebarHeader>
         <ShadSidebarContent className="p-0">
           <ScrollArea className="h-full">
@@ -1283,24 +1357,20 @@ function AppContent() {
           </ScrollArea>
         </ShadSidebarContent>
         <SidebarFooter className="p-2 border-t border-sidebar-border flex items-center group-data-[collapsible=icon]:justify-center">
-            {/* Footer content (profile, logout, theme toggle) moved to top nav */}
         </SidebarFooter>
       </Sidebar>
 
       <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col">
-         {/* Top Navigation Bar */}
         <div className="h-14 flex items-center justify-between px-4 border-b bg-card text-card-foreground sticky top-0 z-30">
-          {/* Left Section */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <SidebarTrigger className="md:hidden -ml-2" /> {/* Mobile Sidebar Toggle */}
-            <div className="hidden md:flex items-center"> <Logo variant="icon" /> </div> {/* Desktop Logo (Icon only) */}
-             <h1 className="text-xl font-bold text-primary whitespace-nowrap overflow-hidden md:hidden">Architech AI</h1> {/* Mobile App Title */}
-
+          <div className="flex items-center gap-1 sm:gap-2">
+            <SidebarTrigger className="md:hidden -ml-2" /> 
+            <div className="hidden md:flex items-center"> <Logo variant="icon" /> </div> 
+             <h1 className="text-xl font-bold text-primary whitespace-nowrap overflow-hidden md:hidden">Architech AI</h1> 
 
             <Button variant="ghost" size="sm" onClick={() => {
-              fetchUserDesigns(); // Ensure designs are fresh
+              fetchUserDesigns(); 
               setIsMyDesignsDialogOpen(true);
-              setIsWelcomeBackDialogOpen(false); // Ensure welcome back is not open
+              setIsWelcomeBackDialogOpen(false); 
             }}>
               <ListChecks className="mr-0 md:mr-2 h-4 w-4" /> <span className="hidden md:inline">My Designs</span>
             </Button>
@@ -1312,16 +1382,29 @@ function AppContent() {
               )}
               <span className="hidden md:inline">Save</span>
             </Button>
+            <Button variant="ghost" size="sm" onClick={handleExportDesign} title="Export Design as JSON">
+                <Download className="mr-0 md:mr-2 h-4 w-4" />
+                <span className="hidden md:inline">Export</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => importFileRef.current?.click()} title="Import Design from JSON">
+                <Upload className="mr-0 md:mr-2 h-4 w-4" />
+                <span className="hidden md:inline">Import</span>
+            </Button>
+            <input 
+                type="file" 
+                ref={importFileRef} 
+                onChange={handleImportFileChange} 
+                accept=".json" 
+                className="hidden"
+            />
           </div>
 
-          {/* Center Section - Current Design Name (Desktop) */}
           <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:block">
             <h2 className="text-base font-medium text-foreground truncate max-w-xs lg:max-w-sm xl:max-w-md">
               {currentDesignName || "Untitled Design"}
             </h2>
           </div>
 
-          {/* Right Section */}
           <div className="flex items-center gap-1 sm:gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1342,7 +1425,6 @@ function AppContent() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {/* <DropdownMenuItem>Profile (soon)</DropdownMenuItem> */}
                     <DropdownMenuItem onClick={handleLogout}>
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Log out</span>
@@ -1378,10 +1460,9 @@ function AppContent() {
         </div>
 
 
-        {/* Main Content Area (Canvas + Properties Panel) */}
         <ReactFlowProvider>
-          <div className="flex flex-1 min-h-0"> {/* This div will grow to fill remaining space */}
-            <main className="flex-1 overflow-auto p-0"> {/* Canvas area */}
+          <div className="flex flex-1 min-h-0"> 
+            <main className="flex-1 overflow-auto p-0"> 
                 <DesignCanvas
                     ref={canvasRef}
                     onNodeSelect={handleNodeSelect}
@@ -1444,7 +1525,7 @@ function AppContent() {
         onClose={() => {
             setIsWelcomeBackDialogOpen(false);
             setIsMyDesignsDialogOpen(false);
-            if (!currentDesignId && canvasRef.current && !isMyDesignsDialogOpen) { // Only load defaults if it was true welcome back
+            if (!currentDesignId && canvasRef.current && !isMyDesignsDialogOpen) { 
                  canvasRef.current.loadTemplate(createDefaultNotes(), []);
                  setCanvasLoadedDesignId(null);
                  setCurrentDesignId(null);
