@@ -427,7 +427,6 @@ import {
   Parameter,
   Argument,
   Return,
-  Input,
   Output,
   Process,
   Algorithm,
