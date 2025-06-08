@@ -114,8 +114,8 @@ export const designComponents: ComponentConfig[] = [
   },
   {
     name: "App Server",
-    icon: ServerCog, // Changed from Puzzle to ServerCog for consistency with another usage
-    iconName: "ServerCog", // Should match icon change
+    icon: ServerCog, 
+    iconName: "ServerCog", 
     initialProperties: { language: "Node.js", framework: "Express", instanceType: "m5.large", scaling: "auto-scaling group", minInstances: 2, maxInstances: 10 },
     configurableProperties: [
       { id: 'language', label: 'Language', type: 'select', options: ["Node.js", "Python", "Java", "Go", "Ruby", ".NET", "PHP"] },
@@ -529,7 +529,7 @@ function AppContent() {
 
   useEffect(() => {
     const initializeAppForUser = async () => {
-      if (!currentUser) {
+      if (!currentUser) { // User logs out or not logged in initially
         setCurrentDesignId(null);
         setCurrentDesignName(null);
         setCanvasLoadedDesignId(null);
@@ -542,28 +542,50 @@ function AppContent() {
         setIsMyDesignsDialogOpen(false);
         setInitialDialogFlowPending(false);
         handleSetDiagramChanged(false);
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
         return;
       }
 
+      // User is logged in or session restored
       await fetchUserDesigns(); 
 
       const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+      let activeDesignIdentifiedFromStorage = false;
       
       if (storedActiveDesignId && storedActiveDesignName) {
         console.log("Found active design in localStorage:", storedActiveDesignId, storedActiveDesignName);
-        setCurrentDesignId(storedActiveDesignId);
+        setCurrentDesignId(storedActiveDesignId); // Conceptually active
         setCurrentDesignName(storedActiveDesignName);
-        setInitialDialogFlowPending(false); 
+        activeDesignIdentifiedFromStorage = true;
+        setInitialDialogFlowPending(false); // Prevent welcome dialogs if we have something from storage
+        
+        // Attempt to load to canvas if ready, but don't let dialog flow depend on canvas readiness here
+        if (canvasRef.current) {
+          const loaded = await handleLoadDesign(storedActiveDesignId, storedActiveDesignName);
+          if(!loaded) { // Design from storage couldn't be loaded (e.g. deleted from DB)
+             localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+             localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+             setCurrentDesignId(null);
+             setCurrentDesignName(null);
+             setCanvasLoadedDesignId(null);
+             activeDesignIdentifiedFromStorage = false;
+             setInitialDialogFlowPending(true); // Allow dialogs to show now
+          }
+        } else {
+            console.log("initializeAppForUser: Canvas not ready, sync effect will handle loading", storedActiveDesignId);
+        }
+
       } else {
         console.log("No active design in localStorage.");
-        if (!currentDesignId && canvasRef.current) {
+         if (!currentDesignId && canvasRef.current) { // No current design, no storage design, and canvas ready
              console.log("No currentDesignId and no localStorage design, loading default notes.");
              canvasRef.current.loadTemplate(createDefaultNotes(), []);
              setCanvasLoadedDesignId(null); 
              handleSetDiagramChanged(false);
         }
-        setInitialDialogFlowPending(true); 
+        setInitialDialogFlowPending(true); // Dialogs might be needed if no design from storage
       }
     };
 
@@ -593,13 +615,17 @@ function AppContent() {
         setIsCanvasSyncing(false);
       }
     };
-    syncCanvas();
+    // Debounce or delay this slightly if canvasRef.current might take a moment after initial render
+    const timer = setTimeout(syncCanvas, 100); 
+    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentDesignId, currentDesignName, canvasRef.current, canvasLoadedDesignId]); 
+  }, [currentDesignId, currentDesignName, canvasLoadedDesignId]); // Removed canvasRef.current, it will re-run if others change anyway
 
 
   useEffect(() => {
-    if (currentUser && initialDialogFlowPending && !isLoadingDesigns && !currentDesignId) {
+    // This effect decides whether to show WelcomeBack or NewDesign dialog
+    // Only if initialDialogFlowPending is true, user is logged in, designs are loaded, AND no design is currently active/loaded
+    if (currentUser && initialDialogFlowPending && !isLoadingDesigns && currentDesignId === null) {
       if (userDesigns.length > 0) {
         console.log("Dialog Effect: Showing Welcome Back Dialog");
         setIsWelcomeBackDialogOpen(true);
@@ -607,7 +633,7 @@ function AppContent() {
         console.log("Dialog Effect: No designs, showing New Design Dialog to name first design");
         handleOpenNewDesignDialog(true);
       }
-      setInitialDialogFlowPending(false);
+      setInitialDialogFlowPending(false); // Mark flow as completed for this session
     }
   }, [currentUser, initialDialogFlowPending, isLoadingDesigns, userDesigns, currentDesignId, handleOpenNewDesignDialog]);
 
@@ -1077,7 +1103,7 @@ function AppContent() {
           onExportDesign={handleExportDesign}
           onImportDesignClick={() => importFileRef.current?.click()}
           onLogout={handleLogout}
-          themes={themeOptions as ThemeOption[]} // Cast if themeOptions comes from a mutable source
+          themes={themeOptions as ThemeOption[]} 
           setTheme={setTheme}
         />
          <input 
@@ -1091,9 +1117,10 @@ function AppContent() {
 
         <ReactFlowProvider>
           <div className="flex flex-1 min-h-0"> 
-            <main className="flex-1 overflow-auto p-0"> 
+            <main className="flex-1 overflow-auto p-0 flex flex-col"> 
                 <DesignCanvas
                     ref={canvasRef}
+                    className="flex-1"
                     onNodeSelect={handleNodeSelect}
                     onStructuralChange={() => {
                         console.log("ArchitechApp: onStructuralChange called from DesignCanvas");

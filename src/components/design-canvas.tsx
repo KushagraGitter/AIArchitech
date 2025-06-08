@@ -34,6 +34,8 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
+
 
 export interface NodeData {
   label: string;
@@ -50,6 +52,7 @@ export interface DesignCanvasHandles {
 interface DesignCanvasProps {
   onNodeSelect: (node: Node<NodeData> | null) => void;
   onStructuralChange?: () => void;
+  className?: string; 
 }
 
 
@@ -58,7 +61,7 @@ const getNextNodeId = () => `dndnode_${idCounter++}`;
 const getNextEdgeId = () => `edge_${idCounter++}`;
 
 
-export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>(({ onNodeSelect, onStructuralChange }, ref) => {
+export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>(({ onNodeSelect, onStructuralChange, className }, ref) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChangeInternal] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChangeInternal] = useEdgesState([]);
@@ -85,7 +88,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
       onNodesChangeInternal(changes);
       let structuralChangeOccurred = false;
       changes.forEach(change => {
-        // Trigger for add, remove, dimensions, and final position changes (after drag)
+        
         if (change.type === 'remove' || change.type === 'add' || change.type === 'dimensions' || (change.type === 'position' && (change.dragging === false || change.dragging === undefined))) {
           console.log("DesignCanvas: Node change detected (structural):", change.type, change);
           structuralChangeOccurred = true;
@@ -252,13 +255,6 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           reactFlowInstance.fitView({padding: 0.2});
         }
       }, 0);
-       if (onStructuralChange) {
-        console.log("DesignCanvas: Template loaded, signaling structural change for initial state.");
-        // Typically, loading a template means it's a new baseline, so changes "start" from here.
-        // However, if an autosave should occur *after* loading a template (if it's a named design),
-        // this would be the place. For now, assuming loading a template means it's "clean".
-        // onStructuralChange(); // Consider if this is needed or if handled by ArchitechApp
-      }
     },
     updateNodeProperties: (nodeId: string, updatedProperties: Record<string, any>) => {
       setNodes((nds) =>
@@ -275,13 +271,11 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           return node;
         })
       );
-      // Note: `handleUpdateNodeProperties` in ArchitechApp calls `setDiagramChangedSinceLastSave(true)`
-      // so we don't need to call onStructuralChange here explicitly if it's only called from there.
     },
   }));
   
   return (
-      <div className="h-full w-full" ref={reactFlowWrapper}>
+      <div className={cn("w-full", className)} ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -294,7 +288,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           onEdgeDoubleClick={onEdgeDoubleClick}
           nodeTypes={nodeTypes}
           fitView
-          className="bg-background shadow-inner"
+          className="bg-transparent shadow-inner" 
           defaultEdgeOptions={{ 
             animated: true,
             style: { strokeWidth: 2, stroke: 'hsl(var(--accent))' },
@@ -305,7 +299,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           nodesDraggable={true}
         >
           <Controls className="[&_button]:bg-card [&_button]:border-border [&_button:hover]:bg-muted [&_svg]:fill-foreground" />
-          <Background gap={16} color="hsl(var(--border))" />
+          <Background gap={16} color="rgba(128,128,128,0.3)" />
           <MiniMap 
             nodeColor={(node) => {
                 switch (node.type) {
