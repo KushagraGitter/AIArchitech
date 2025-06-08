@@ -40,7 +40,7 @@ import { cn } from '@/lib/utils';
 export interface NodeData {
   label: string;
   iconName: string;
-  properties: Record<string, any>; 
+  properties: Record<string, any>;
 }
 
 export interface DesignCanvasHandles {
@@ -52,7 +52,7 @@ export interface DesignCanvasHandles {
 interface DesignCanvasProps {
   onNodeSelect: (node: Node<NodeData> | null) => void;
   onStructuralChange?: () => void;
-  className?: string; 
+  className?: string;
 }
 
 
@@ -88,7 +88,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
       onNodesChangeInternal(changes);
       let structuralChangeOccurred = false;
       changes.forEach(change => {
-        
+
         if (change.type === 'remove' || change.type === 'add' || change.type === 'dimensions' || (change.type === 'position' && (change.dragging === false || change.dragging === undefined))) {
           console.log("DesignCanvas: Node change detected (structural):", change.type, change);
           structuralChangeOccurred = true;
@@ -130,7 +130,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
         animated: true,
         style: { strokeWidth: 2, stroke: 'hsl(var(--accent))' },
         markerEnd: { type: MarkerType.ArrowClosed, color: 'hsl(var(--accent))' },
-        label: '', 
+        label: '',
       };
       setEdges((eds) => addEdge(newEdge, eds));
       if (onStructuralChange) {
@@ -156,7 +156,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
 
       const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
       const dataString = event.dataTransfer.getData('application/reactflow');
-      
+
       if (!dataString) return;
 
       const { name, iconName, properties: initialProperties } = JSON.parse(dataString);
@@ -170,10 +170,10 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
         id: getNextNodeId(),
         type: 'custom',
         position,
-        data: { 
-          label: name, 
-          iconName: iconName, 
-          properties: initialProperties || {} 
+        data: {
+          label: name,
+          iconName: iconName,
+          properties: initialProperties || {}
         },
       };
 
@@ -185,14 +185,14 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
     },
     [reactFlowInstance, setNodes, onStructuralChange]
   );
-  
+
   const onEdgeDoubleClick = useCallback(
     (_event: React.MouseEvent, edge: Edge) => {
       setCurrentEditingEdgeId(edge.id);
       setEdgeLabelInput(edge.label as string || '');
       setIsEdgeDialogVisible(true);
     },
-    [] 
+    []
   );
 
   const handleSaveEdgeLabel = () => {
@@ -223,7 +223,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
         ...node,
         data: {
           ...node.data,
-          properties: node.data.properties || {} 
+          properties: node.data.properties || {}
         }
       }));
       return JSON.stringify({ nodes: nodesWithFullData, edges });
@@ -231,15 +231,15 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
     loadTemplate: (initialNodes: Node<NodeData>[], initialEdges: Edge[]) => {
       setNodes(initialNodes.map(n => ({...n, data: {...n.data, properties: n.data.properties || {}}})));
       setEdges(initialEdges);
-      onNodeSelect(null); 
+      onNodeSelect(null);
 
       const maxNodeIdSuffix = initialNodes.reduce((max, node) => {
         const parts = node.id.split('_');
         const numPart = parts.pop();
         const num = numPart ? parseInt(numPart, 10) : NaN;
-        return Math.max(max, isNaN(num) ? -1 : num); 
+        return Math.max(max, isNaN(num) ? -1 : num);
       }, -1);
-      
+
       const maxEdgeIdSuffix = initialEdges.reduce((max, edge) => {
         const parts = edge.id.split('_');
         const numPart = parts.pop();
@@ -250,7 +250,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
       idCounter = Math.max(maxNodeIdSuffix, maxEdgeIdSuffix, -1) + 1;
 
 
-      setTimeout(() => { 
+      setTimeout(() => {
         if (reactFlowInstance) {
           reactFlowInstance.fitView({padding: 0.2});
         }
@@ -273,9 +273,9 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
       );
     },
   }));
-  
+
   return (
-      <div className={cn("w-full", className)} ref={reactFlowWrapper}>
+      <div className={cn("w-full flex flex-col", className)} ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -288,19 +288,20 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           onEdgeDoubleClick={onEdgeDoubleClick}
           nodeTypes={nodeTypes}
           fitView
-          className="bg-transparent shadow-inner" 
-          defaultEdgeOptions={{ 
+          className="flex-1 bg-transparent shadow-inner"
+          defaultEdgeOptions={{
             animated: true,
             style: { strokeWidth: 2, stroke: 'hsl(var(--accent))' },
             markerEnd: { type: MarkerType.ArrowClosed, color: 'hsl(var(--accent))' },
           }}
           selectNodesOnDrag={false}
-          multiSelectionKeyCode={null} 
+          multiSelectionKeyCode={null}
           nodesDraggable={true}
+          style={{ height: '100%', width: '100%' }}
         >
           <Controls className="[&_button]:bg-card [&_button]:border-border [&_button:hover]:bg-muted [&_svg]:fill-foreground" />
           <Background gap={16} color="rgba(128,128,128,0.3)" />
-          <MiniMap 
+          <MiniMap
             nodeColor={(node) => {
                 switch (node.type) {
                     case 'custom': return 'hsl(var(--primary))';
@@ -308,7 +309,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
                 }
             }}
             nodeStrokeWidth={3}
-            pannable 
+            pannable
             zoomable
             className="!bg-card border border-border rounded-md shadow-lg"
           />
@@ -355,4 +356,3 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
 });
 
 DesignCanvas.displayName = 'DesignCanvas';
-
