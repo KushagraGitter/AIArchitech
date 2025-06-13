@@ -11,7 +11,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const GenerateTerraformInputSchema = z.object({
+const GenerateTerraformInputSchema = z.object({
   diagramJson: z
     .string()
     .describe("The system design diagram, as a JSON string. This JSON represents an object with 'nodes' and 'edges'. 'nodes' have 'data.label' and 'data.properties'. 'edges' may have 'label'."),
@@ -20,7 +20,7 @@ export const GenerateTerraformInputSchema = z.object({
 });
 export type GenerateTerraformInput = z.infer<typeof GenerateTerraformInputSchema>;
 
-export const GenerateTerraformOutputSchema = z.object({
+const GenerateTerraformOutputSchema = z.object({
   terraformHcl: z.string().describe('The generated Terraform HCL code as a string. This should be a best-effort attempt and may require user review and modification.'),
   warnings: z.array(z.string()).optional().describe('An array of warnings about components or properties that could not be confidently mapped or require special attention.'),
   suggestions: z.array(z.string()).optional().describe('An array of suggestions for the user on how to refine or complete the generated Terraform code.'),

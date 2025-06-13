@@ -24,17 +24,28 @@ import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MessageSquarePlus } from 'lucide-react';
+import { Loader2, MessageSquarePlus, Copy, AlertTriangle } from 'lucide-react';
 
 import { DesignCanvas, type DesignCanvasHandles, type NodeData } from '@/components/design-canvas';
 import { PropertiesPanel } from '@/components/properties-panel';
 import type { EvaluateSystemDesignInput, EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 import { evaluateSystemDesign } from '@/ai/flows/evaluate-system-design';
+import type { GenerateTerraformInput, GenerateTerraformOutput } from '@/ai/flows/generate-terraform-flow';
+import { generateTerraform } from '@/ai/flows/generate-terraform-flow';
 import { themes as themeOptions, type ThemeOption } from '@/components/theme-toggle-button'; 
 import { ChatBotWindow, type ChatMessage } from '@/components/chat-bot-window';
 import type { InterviewBotInput } from '@/ai/flows/interview-bot-flow';
@@ -132,6 +143,12 @@ function AppContent() {
 
   const [canvasLoadedDesignId, setCanvasLoadedDesignId] = useState<string | null>(null);
   const [isCanvasSyncing, setIsCanvasSyncing] = useState(false);
+
+  const [isTerraformExportDialogOpen, setIsTerraformExportDialogOpen] = useState(false);
+  const [selectedTerraformProvider, setSelectedTerraformProvider] = useState<'AWS' | 'GCP' | 'Azure' | ''>('');
+  const [isTerraformResultModalOpen, setIsTerraformResultModalOpen] = useState(false);
+  const [terraformExportResult, setTerraformExportResult] = useState<GenerateTerraformOutput | null>(null);
+  const [isGeneratingTerraform, setIsGeneratingTerraform] = useState(false);
 
 
   const { currentUser, logout, loading: authLoading } = useAuth();
@@ -284,7 +301,7 @@ function AppContent() {
 
   useEffect(() => {
     const initializeAppForUser = async () => {
-      if (!currentUser) { // User logs out or not logged in initially
+      if (!currentUser) { 
         setCurrentDesignId(null);
         setCurrentDesignName(null);
         setCanvasLoadedDesignId(null);
@@ -302,31 +319,26 @@ function AppContent() {
         return;
       }
 
-      // User is logged in or session restored
       await fetchUserDesigns(); 
 
       const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
       const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-      let activeDesignIdentifiedFromStorage = false;
       
       if (storedActiveDesignId && storedActiveDesignName) {
         console.log("Found active design in localStorage:", storedActiveDesignId, storedActiveDesignName);
-        setCurrentDesignId(storedActiveDesignId); // Conceptually active
+        setCurrentDesignId(storedActiveDesignId); 
         setCurrentDesignName(storedActiveDesignName);
-        activeDesignIdentifiedFromStorage = true;
-        setInitialDialogFlowPending(false); // Prevent welcome dialogs if we have something from storage
+        setInitialDialogFlowPending(false); 
         
-        // Attempt to load to canvas if ready, but don't let dialog flow depend on canvas readiness here
         if (canvasRef.current) {
           const loaded = await handleLoadDesign(storedActiveDesignId, storedActiveDesignName);
-          if(!loaded) { // Design from storage couldn't be loaded (e.g. deleted from DB)
+          if(!loaded) { 
              localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
              localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
              setCurrentDesignId(null);
              setCurrentDesignName(null);
              setCanvasLoadedDesignId(null);
-             activeDesignIdentifiedFromStorage = false;
-             setInitialDialogFlowPending(true); // Allow dialogs to show now
+             setInitialDialogFlowPending(true); 
           }
         } else {
             console.log("initializeAppForUser: Canvas not ready, sync effect will handle loading", storedActiveDesignId);
@@ -334,13 +346,13 @@ function AppContent() {
 
       } else {
         console.log("No active design in localStorage.");
-         if (!currentDesignId && canvasRef.current) { // No current design, no storage design, and canvas ready
+         if (!currentDesignId && canvasRef.current) { 
              console.log("No currentDesignId and no localStorage design, loading default notes.");
              canvasRef.current.loadTemplate(createDefaultNotes(), []);
              setCanvasLoadedDesignId(null); 
              handleSetDiagramChanged(false);
         }
-        setInitialDialogFlowPending(true); // Dialogs might be needed if no design from storage
+        setInitialDialogFlowPending(true); 
       }
     };
 
@@ -370,16 +382,13 @@ function AppContent() {
         setIsCanvasSyncing(false);
       }
     };
-    // Debounce or delay this slightly if canvasRef.current might take a moment after initial render
     const timer = setTimeout(syncCanvas, 100); 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentDesignId, currentDesignName, canvasLoadedDesignId]); // Removed canvasRef.current, it will re-run if others change anyway
+  }, [currentDesignId, currentDesignName, canvasLoadedDesignId]); 
 
 
   useEffect(() => {
-    // This effect decides whether to show WelcomeBack or NewDesign dialog
-    // Only if initialDialogFlowPending is true, user is logged in, designs are loaded, AND no design is currently active/loaded
     if (currentUser && initialDialogFlowPending && !isLoadingDesigns && currentDesignId === null) {
       if (userDesigns.length > 0) {
         console.log("Dialog Effect: Showing Welcome Back Dialog");
@@ -388,7 +397,7 @@ function AppContent() {
         console.log("Dialog Effect: No designs, showing New Design Dialog to name first design");
         handleOpenNewDesignDialog(true);
       }
-      setInitialDialogFlowPending(false); // Mark flow as completed for this session
+      setInitialDialogFlowPending(false); 
     }
   }, [currentUser, initialDialogFlowPending, isLoadingDesigns, userDesigns, currentDesignId, handleOpenNewDesignDialog]);
 
@@ -815,6 +824,66 @@ function AppContent() {
     reader.readAsText(file);
   };
 
+  const handleExportToTerraformClick = () => {
+    if (!currentUser) {
+      toast({ title: "Login Required", description: "Please log in to export to Terraform.", variant: "destructive" });
+      return;
+    }
+    if (!canvasRef.current) {
+      toast({ title: "Error", description: "Design canvas is not available.", variant: "destructive" });
+      return;
+    }
+    setIsTerraformExportDialogOpen(true);
+  };
+
+  const handleGenerateTerraformSubmit = async () => {
+    if (!selectedTerraformProvider) {
+      toast({ title: "Provider Required", description: "Please select a cloud provider.", variant: "destructive" });
+      return;
+    }
+    if (!canvasRef.current) {
+      toast({ title: "Error", description: "Design canvas is not available.", variant: "destructive" });
+      return;
+    }
+
+    setIsTerraformExportDialogOpen(false);
+    setIsGeneratingTerraform(true);
+    setTerraformExportResult(null);
+
+    try {
+      const diagramJson = canvasRef.current.getDiagramJson();
+      const input: GenerateTerraformInput = {
+        diagramJson,
+        targetProvider: selectedTerraformProvider,
+        // additionalRequirements: "Optional: user can add hints here in future version"
+      };
+
+      const result = await generateTerraform(input);
+      setTerraformExportResult(result);
+      setIsTerraformResultModalOpen(true);
+      toast({ title: "Terraform HCL Generated", description: "Review the generated code. It's a starting point." });
+    } catch (error) {
+      console.error("Error generating Terraform:", error);
+      toast({
+        title: "Terraform Generation Error",
+        description: `Failed to generate Terraform HCL. ${error instanceof Error ? error.message : "An unknown error occurred."}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingTerraform(false);
+      setSelectedTerraformProvider(''); // Reset for next time
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: "Copied!", description: "Terraform HCL copied to clipboard." });
+    }).catch(err => {
+      toast({ title: "Copy Failed", description: "Could not copy to clipboard.", variant: "destructive" });
+      console.error('Failed to copy text: ', err);
+    });
+  };
+
 
   if (authLoading && !currentUser) {
     return (
@@ -857,6 +926,7 @@ function AppContent() {
           canSave={!!currentDesignId && !(currentDesignName || "").endsWith("(Unsaved)")}
           onExportDesign={handleExportDesign}
           onImportDesignClick={() => importFileRef.current?.click()}
+          onExportToTerraformClick={handleExportToTerraformClick}
           onLogout={handleLogout}
           themes={themeOptions as ThemeOption[]} 
           setTheme={setTheme}
@@ -1001,6 +1071,130 @@ function AppContent() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Terraform Export Provider Selection Dialog */}
+      <Dialog open={isTerraformExportDialogOpen} onOpenChange={setIsTerraformExportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export to Terraform (Experimental)</DialogTitle>
+            <DialogDescription>
+              Select a target cloud provider. The generated HCL will be a starting point and requires review.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              <Label htmlFor="terraformProvider" className="text-sm font-medium">
+                Cloud Provider
+              </Label>
+              <Select
+                value={selectedTerraformProvider}
+                onValueChange={(value) => setSelectedTerraformProvider(value as 'AWS' | 'GCP' | 'Azure' | '')}
+              >
+                <SelectTrigger id="terraformProvider" className="mt-1">
+                  <SelectValue placeholder="Select a provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AWS">Amazon Web Services (AWS)</SelectItem>
+                  <SelectItem value="GCP">Google Cloud Platform (GCP)</SelectItem>
+                  <SelectItem value="Azure">Microsoft Azure</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              type="button"
+              onClick={handleGenerateTerraformSubmit}
+              disabled={!selectedTerraformProvider || isGeneratingTerraform}
+            >
+              {isGeneratingTerraform ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Generate HCL
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Terraform Result Modal */}
+      <Dialog open={isTerraformResultModalOpen} onOpenChange={setIsTerraformResultModalOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Generated Terraform HCL</DialogTitle>
+            <DialogDescription>
+              This is a skeleton HCL. Review and modify it carefully before use.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4 max-h-[70vh] flex flex-col">
+            {isGeneratingTerraform && (
+                <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                </div>
+            )}
+            {terraformExportResult && (
+              <>
+                {(terraformExportResult.warnings && terraformExportResult.warnings.length > 0) && (
+                  <Card className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-900/10">
+                    <CardHeader className="pb-2 pt-3 px-4">
+                      <CardTitle className="text-base text-yellow-700 dark:text-yellow-300 flex items-center">
+                        <AlertTriangle className="h-5 w-5 mr-2" /> Warnings
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3 text-sm text-yellow-600 dark:text-yellow-400">
+                      <ul className="list-disc pl-5 space-y-1">
+                        {terraformExportResult.warnings.map((warning, index) => (
+                          <li key={`warning-${index}`}>{warning}</li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <div className="flex-1 overflow-hidden flex flex-col">
+                  <Label htmlFor="terraformHclOutput" className="text-sm font-medium mb-1">
+                    Terraform Code:
+                  </Label>
+                  <ScrollArea className="flex-1 border rounded-md bg-muted/30">
+                    <Textarea
+                      id="terraformHclOutput"
+                      value={terraformExportResult.terraformHcl}
+                      readOnly
+                      className="h-full min-h-[200px] font-mono text-xs p-3 bg-transparent border-0 focus-visible:ring-0"
+                      rows={15}
+                    />
+                  </ScrollArea>
+                </div>
+                <Button
+                    onClick={() => copyToClipboard(terraformExportResult.terraformHcl)}
+                    variant="outline"
+                    className="mt-2 self-start"
+                >
+                    <Copy className="mr-2 h-4 w-4" /> Copy HCL
+                </Button>
+
+                {(terraformExportResult.suggestions && terraformExportResult.suggestions.length > 0) && (
+                  <Card className="border-blue-500/50 bg-blue-50 dark:bg-blue-900/10 mt-4">
+                    <CardHeader className="pb-2 pt-3 px-4">
+                      <CardTitle className="text-base text-blue-700 dark:text-blue-300">Suggestions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3 text-sm text-blue-600 dark:text-blue-400">
+                      <ul className="list-disc pl-5 space-y-1">
+                        {terraformExportResult.suggestions.map((suggestion, index) => (
+                          <li key={`suggestion-${index}`}>{suggestion}</li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsTerraformResultModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -1027,4 +1221,3 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
-

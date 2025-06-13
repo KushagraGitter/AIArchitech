@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -11,10 +12,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, SaveIcon, ListChecks, Download, Upload, UserCircle, Settings2, LogOut } from 'lucide-react';
+import { Loader2, SaveIcon, ListChecks, Download, Upload, UserCircle, Settings2, LogOut, Code } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import type { ThemeOption } from '@/components/theme-toggle-button'; // Assuming ThemeOption is exported
+import type { ThemeOption } from '@/components/theme-toggle-button'; 
 
 interface TopNavigationBarProps {
   currentDesignName: string | null;
@@ -25,6 +26,7 @@ interface TopNavigationBarProps {
   canSave: boolean;
   onExportDesign: () => void;
   onImportDesignClick: () => void;
+  onExportToTerraformClick: () => void; // New prop
   onLogout: () => void;
   themes: ThemeOption[];
   setTheme: (theme: string) => void;
@@ -39,6 +41,7 @@ export function TopNavigationBar({
   canSave,
   onExportDesign,
   onImportDesignClick,
+  onExportToTerraformClick, // New prop
   onLogout,
   themes,
   setTheme,
@@ -63,11 +66,15 @@ export function TopNavigationBar({
         </Button>
         <Button variant="ghost" size="sm" onClick={onExportDesign} title="Export Design as JSON">
             <Download className="mr-0 md:mr-2 h-4 w-4" />
-            <span className="hidden md:inline">Export</span>
+            <span className="hidden md:inline">Export JSON</span>
         </Button>
         <Button variant="ghost" size="sm" onClick={onImportDesignClick} title="Import Design from JSON">
             <Upload className="mr-0 md:mr-2 h-4 w-4" />
-            <span className="hidden md:inline">Import</span>
+            <span className="hidden md:inline">Import JSON</span>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onExportToTerraformClick} title="Export to Terraform (Experimental)">
+            <Code className="mr-0 md:mr-2 h-4 w-4" />
+            <span className="hidden md:inline">Export IaC</span>
         </Button>
       </div>
 
