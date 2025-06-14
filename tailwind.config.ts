@@ -82,11 +82,16 @@ export default {
   				to: {
   					height: '0'
   				}
-  			}
+  			},
+        'ai-glow': {
+          '0%, 100%': { opacity: '0.7', transform: 'scale(1)' },
+          '50%': { opacity: '1', transform: 'scale(1.10)' },
+        },
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+        'ai-glow': 'ai-glow 2.5s infinite ease-in-out',
   		}
   	}
   },
