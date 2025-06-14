@@ -26,7 +26,7 @@ interface TopNavigationBarProps {
   canSave: boolean;
   onExportDesign: () => void;
   onImportDesignClick: () => void;
-  onExportToTerraformClick: () => void; // New prop
+  onExportToTerraformClick: () => void;
   onLogout: () => void;
   themes: ThemeOption[];
   setTheme: (theme: string) => void;
@@ -41,7 +41,7 @@ export function TopNavigationBar({
   canSave,
   onExportDesign,
   onImportDesignClick,
-  onExportToTerraformClick, // New prop
+  onExportToTerraformClick,
   onLogout,
   themes,
   setTheme,
@@ -53,9 +53,6 @@ export function TopNavigationBar({
         <div className="hidden md:flex items-center"> <Logo variant="icon" /> </div>
         <h1 className="text-xl font-bold text-primary whitespace-nowrap overflow-hidden md:hidden">Architech AI</h1>
 
-        <Button variant="ghost" size="sm" onClick={onMyDesignsClick}>
-          <ListChecks className="mr-0 md:mr-2 h-4 w-4" /> <span className="hidden md:inline">My Designs</span>
-        </Button>
         <Button variant="secondary" size="sm" onClick={onSaveDesign} disabled={isSavingDesign || !canSave}>
           {isSavingDesign ? (
             <Loader2 className="mr-0 md:mr-2 h-4 w-4 animate-spin" />
@@ -103,6 +100,11 @@ export function TopNavigationBar({
                     </p>
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onMyDesignsClick}>
+                  <ListChecks className="mr-2 h-4 w-4" />
+                  <span>My Designs</span>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
