@@ -37,7 +37,7 @@ interface AppSidebarProps {
   initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }[];
   onDragStart: (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => void;
   onLoadTemplate: (nodes: Node<NodeData>[], edges: Edge[], templateName: string) => void;
-  onNewDesignButtonClick: () => void;
+  // onNewDesignButtonClick: () => void; // Removed prop
 }
 
 export function AppSidebar({
@@ -49,7 +49,7 @@ export function AppSidebar({
   initialTemplates,
   onDragStart,
   onLoadTemplate,
-  onNewDesignButtonClick,
+  // onNewDesignButtonClick, // Removed from destructuring
 }: AppSidebarProps) {
   const [componentSearchTerm, setComponentSearchTerm] = useState('');
 
@@ -153,10 +153,10 @@ export function AppSidebar({
 
               <Separator className="my-2" />
               <SidebarGroup className="p-2 space-y-2">
-                 <Button type="button" variant="secondary" className="w-full" onClick={onNewDesignButtonClick}>
+                 {/* <Button type="button" variant="secondary" className="w-full" onClick={onNewDesignButtonClick}>
                     <FileText className="mr-2 h-4 w-4" />
                     New Design
-                  </Button>
+                  </Button> */}
                 <Button type="submit" className="w-full" disabled={isLoadingEvaluation}>
                   {isLoadingEvaluation ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -274,3 +274,4 @@ export function AppSidebar({
     </Sidebar>
   );
 }
+
