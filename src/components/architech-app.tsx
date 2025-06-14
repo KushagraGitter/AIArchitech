@@ -57,7 +57,7 @@ import { useTheme } from "next-themes";
 import { AuthSection } from './auth-section';
 import { AppSidebar } from './app-sidebar';
 import { TopNavigationBar } from './top-navigation-bar';
-import { designComponents as allDesignComponents, groupedDesignComponents } from './designComponents'; // Updated import
+import { designComponents as allDesignComponents, groupedDesignComponents } from './designComponents';
 import { initialTemplates } from './initialTemplates';
 
 const formSchema = z.object({
@@ -930,6 +930,7 @@ function AppContent() {
           onExportDesign={handleExportDesign}
           onImportDesignClick={() => importFileRef.current?.click()}
           onExportToTerraformClick={handleExportToTerraformClick}
+          onNewDesignClick={handleNewDesignButtonClick} 
           onLogout={handleLogout}
           themes={themeOptions as ThemeOption[]} 
           setTheme={setTheme}

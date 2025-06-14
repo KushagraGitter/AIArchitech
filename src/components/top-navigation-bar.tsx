@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, SaveIcon, ListChecks, Download, Upload, UserCircle, Settings2, LogOut, Code } from 'lucide-react';
+import { Loader2, SaveIcon, ListChecks, Download, Upload, UserCircle, Settings2, LogOut, Code, FilePlus2 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { ThemeOption } from '@/components/theme-toggle-button'; 
@@ -27,6 +27,7 @@ interface TopNavigationBarProps {
   onExportDesign: () => void;
   onImportDesignClick: () => void;
   onExportToTerraformClick: () => void;
+  onNewDesignClick: () => void; // Added new prop
   onLogout: () => void;
   themes: ThemeOption[];
   setTheme: (theme: string) => void;
@@ -42,6 +43,7 @@ export function TopNavigationBar({
   onExportDesign,
   onImportDesignClick,
   onExportToTerraformClick,
+  onNewDesignClick, // Consumed new prop
   onLogout,
   themes,
   setTheme,
@@ -66,6 +68,9 @@ export function TopNavigationBar({
 
       {/* Right Aligned Items: Action Icons, User Menu, Settings Menu */}
       <div className="flex items-center gap-1 sm:gap-2">
+        <Button variant="ghost" size="icon" onClick={onNewDesignClick} title="New Design">
+          <FilePlus2 className="h-4 w-4" />
+        </Button>
         <Button variant="ghost" size="icon" onClick={onSaveDesign} disabled={isSavingDesign || !canSave} title="Save Design">
           {isSavingDesign ? (
             <Loader2 className="h-4 w-4 animate-spin" />
