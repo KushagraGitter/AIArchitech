@@ -57,7 +57,7 @@ import { useTheme } from "next-themes";
 import { AuthSection } from './auth-section';
 import { AppSidebar } from './app-sidebar';
 import { TopNavigationBar } from './top-navigation-bar';
-import { designComponents } from './designComponents';
+import { designComponents as allDesignComponents, groupedDesignComponents } from './designComponents'; // Updated import
 import { initialTemplates } from './initialTemplates';
 
 const formSchema = z.object({
@@ -78,7 +78,7 @@ const AUTOSAVE_DELAY_MS = 2000;
 
 
 const createDefaultNotes = (): Node<NodeData>[] => {
-  const infoNoteConfig = designComponents.find(c => c.name === "Info Note");
+  const infoNoteConfig = allDesignComponents.find(group => group.groupName === "General")?.components.find(c => c.name === "Info Note");
   if (!infoNoteConfig) return [];
 
   return [
@@ -534,8 +534,11 @@ function AppContent() {
       }) : null);
     }
   };
+  
+  const selectedComponentConfig = selectedNode 
+    ? allDesignComponents.flatMap(group => group.components).find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName || c.name === selectedNode.data.label.replace(/ \(.+\)$/, '')) 
+    : undefined;
 
-  const selectedComponentConfig = selectedNode ? designComponents.find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName || c.name === selectedNode.data.label.replace(/ \(.+\)$/, '')) : undefined;
 
   const extractContextFromDiagram = () => {
     let designDiagramJson = JSON.stringify({ nodes: [], edges: [] });
@@ -905,7 +908,7 @@ function AppContent() {
         onSubmit={onSubmitEvaluation}
         isLoadingEvaluation={isLoadingEvaluation}
         aiFeedback={aiFeedback}
-        designComponents={designComponents}
+        groupedDesignComponents={groupedDesignComponents}
         initialTemplates={initialTemplates}
         onDragStart={onDragStart}
         onLoadTemplate={loadTemplate}

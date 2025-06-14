@@ -1,6 +1,7 @@
+
 "use client";
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import type { Node, Edge } from 'reactflow';
@@ -9,24 +10,22 @@ import {
   SidebarHeader,
   SidebarContent as ShadSidebarContent,
   SidebarFooter,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Form } from '@/components/ui/form';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Sparkles, Box, Layers, FileText } from 'lucide-react';
+import { Loader2, Sparkles, Layers, FileText, Search } from 'lucide-react';
 import type { NodeData } from '@/components/design-canvas';
 import type { EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
-import type { ComponentConfig } from '@/components/properties-panel';
+import type { ComponentGroup, ComponentConfig } from '@/components/designComponents'; // Updated import
 
-const formSchema = z.object({}); // Minimal schema as form fields are dynamic now
+const formSchema = z.object({}); 
 type FormValues = z.infer<typeof formSchema>;
 
 interface AppSidebarProps {
@@ -34,7 +33,7 @@ interface AppSidebarProps {
   onSubmit: (data: FormValues) => Promise<void>;
   isLoadingEvaluation: boolean;
   aiFeedback: EvaluateSystemDesignOutput | null;
-  designComponents: ComponentConfig[];
+  groupedDesignComponents: ComponentGroup[]; // Changed from designComponents
   initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }[];
   onDragStart: (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => void;
   onLoadTemplate: (nodes: Node<NodeData>[], edges: Edge[], templateName: string) => void;
@@ -46,12 +45,39 @@ export function AppSidebar({
   onSubmit,
   isLoadingEvaluation,
   aiFeedback,
-  designComponents,
+  groupedDesignComponents, // Changed
   initialTemplates,
   onDragStart,
   onLoadTemplate,
   onNewDesignButtonClick,
 }: AppSidebarProps) {
+  const [componentSearchTerm, setComponentSearchTerm] = useState('');
+
+  const filteredComponentGroups = useMemo(() => {
+    if (!componentSearchTerm.trim()) {
+      return groupedDesignComponents;
+    }
+    const lowerSearchTerm = componentSearchTerm.toLowerCase();
+    return groupedDesignComponents
+      .map(group => {
+        const filteredComponents = group.components.filter(component =>
+          component.name.toLowerCase().includes(lowerSearchTerm)
+        );
+        return { ...group, components: filteredComponents };
+      })
+      .filter(group => group.components.length > 0);
+  }, [groupedDesignComponents, componentSearchTerm]);
+
+  // Determine default open accordions: all groups if searching, otherwise first few or based on some logic.
+  // For now, let's open all filtered groups or the first group if no search.
+  const defaultOpenAccordions = useMemo(() => {
+    if (componentSearchTerm.trim()) {
+      return filteredComponentGroups.map(g => g.groupName);
+    }
+    return groupedDesignComponents.length > 0 ? [groupedDesignComponents[0].groupName] : [];
+  }, [componentSearchTerm, filteredComponentGroups, groupedDesignComponents]);
+
+
   return (
     <Sidebar variant="inset" collapsible="icon">
       <SidebarHeader className="p-0">
@@ -60,33 +86,46 @@ export function AppSidebar({
         <ScrollArea className="h-full">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0">
-              <Accordion type="multiple" defaultValue={["components-accordion", "templates-accordion"]} className="w-full">
-                <AccordionItem value="components-accordion" className="border-none">
-                  <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
-                    <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
-                      <Box className="h-4 w-4" /> Components
-                    </SidebarGroupLabel>
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-1 pb-0">
-                    <SidebarGroup className="p-2 pt-0">
-                      <SidebarMenu>
-                        {designComponents.map((component) => (
-                          <SidebarMenuItem key={component.name}>
-                            <SidebarMenuButton
-                              draggable={true}
-                              onDragStart={(event) => onDragStart(event, component.name, component.iconName, component.initialProperties)}
-                              className="text-sm cursor-grab"
-                              tooltip={component.name}
-                            >
-                              <component.icon className="h-4 w-4" />
-                              <span>{component.name}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
+              <Accordion type="multiple" defaultValue={["templates-accordion", ...defaultOpenAccordions]} className="w-full">
+                
+                <SidebarGroup className="p-2 space-y-1 sticky top-0 bg-sidebar z-10 border-b border-sidebar-border">
+                   <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            type="text"
+                            placeholder="Search components..."
+                            value={componentSearchTerm}
+                            onChange={(e) => setComponentSearchTerm(e.target.value)}
+                            className="pl-8 h-9 text-sm"
+                        />
+                    </div>
+                </SidebarGroup>
+
+                {filteredComponentGroups.map((group) => (
+                  <AccordionItem value={group.groupName} key={group.groupName} className="border-none">
+                    <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
+                      <SidebarGroupLabel className="flex items-center gap-2 text-sm group-hover:text-sidebar-accent-foreground">
+                        <group.groupIcon className="h-4 w-4" /> {group.groupName}
+                      </SidebarGroupLabel>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pb-0">
+                      <div className="grid grid-cols-3 gap-1 p-1 group-data-[collapsible=icon]:grid-cols-1">
+                        {group.components.map((component) => (
+                          <div
+                            key={component.name}
+                            draggable={true}
+                            onDragStart={(event) => onDragStart(event, component.name, component.iconName, component.initialProperties)}
+                            className="flex flex-col items-center justify-start p-2 rounded-md hover:bg-sidebar-primary hover:text-sidebar-primary-foreground cursor-grab text-center aspect-[4/3] group-data-[collapsible=icon]:aspect-auto group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:flex-row group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-2"
+                            title={component.name} // Tooltip for collapsed view
+                          >
+                            <component.icon className="h-6 w-6 mb-1 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4 group-data-[collapsible=icon]:mb-0" />
+                            <span className="text-xs leading-tight group-data-[collapsible=icon]:hidden">{component.name}</span>
+                          </div>
                         ))}
-                      </SidebarMenu>
-                    </SidebarGroup>
-                  </AccordionContent>
-                </AccordionItem>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
 
                 <AccordionItem value="templates-accordion" className="border-none">
                   <AccordionTrigger className="px-2 py-1.5 hover:no-underline hover:bg-sidebar-accent rounded-md group">
@@ -95,22 +134,19 @@ export function AppSidebar({
                     </SidebarGroupLabel>
                   </AccordionTrigger>
                   <AccordionContent className="pt-1 pb-0">
-                    <SidebarGroup className="p-2 pt-0">
-                      <SidebarMenu>
+                     <div className="grid grid-cols-3 gap-1 p-1 group-data-[collapsible=icon]:grid-cols-1">
                         {initialTemplates.map((template) => (
-                          <SidebarMenuItem key={template.name}>
-                            <SidebarMenuButton
-                              onClick={() => onLoadTemplate(template.nodes, template.edges, template.name)}
-                              className="text-sm"
-                              tooltip={`Load ${template.name} template`}
-                            >
-                              <Layers className="h-4 w-4" />
-                              <span>{template.name}</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
+                           <div
+                            key={template.name}
+                            onClick={() => onLoadTemplate(template.nodes, template.edges, template.name)}
+                            className="flex flex-col items-center justify-start p-2 rounded-md hover:bg-sidebar-primary hover:text-sidebar-primary-foreground cursor-pointer text-center aspect-[4/3] group-data-[collapsible=icon]:aspect-auto group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:flex-row group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-2"
+                            title={template.name}
+                          >
+                            <Layers className="h-6 w-6 mb-1 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4 group-data-[collapsible=icon]:mb-0" />
+                            <span className="text-xs leading-tight group-data-[collapsible=icon]:hidden">{template.name}</span>
+                          </div>
                         ))}
-                      </SidebarMenu>
-                    </SidebarGroup>
+                      </div>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
