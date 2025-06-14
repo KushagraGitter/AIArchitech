@@ -48,7 +48,7 @@ export function TopNavigationBar({
 }: TopNavigationBarProps) {
   return (
     <div className="h-14 flex items-center justify-between px-4 border-b bg-card text-card-foreground sticky top-0 z-30">
-      {/* Left Aligned Items */}
+      {/* Left Aligned Items: Logo and Design Name */}
       <div className="flex items-center gap-1 sm:gap-2">
         <SidebarTrigger className="md:hidden -ml-2" />
         
@@ -58,7 +58,14 @@ export function TopNavigationBar({
         <div className="hidden md:block"> {/* Desktop: Icon Logo */}
           <Logo variant="icon" />
         </div>
+        
+        <h2 className="text-base font-medium text-foreground truncate max-w-xs lg:max-w-sm xl:max-w-md hidden md:block">
+          {currentDesignName || "Untitled Design"}
+        </h2>
+      </div>
 
+      {/* Right Aligned Items: Action Icons, User Menu, Settings Menu */}
+      <div className="flex items-center gap-1 sm:gap-2">
         <Button variant="ghost" size="icon" onClick={onSaveDesign} disabled={isSavingDesign || !canSave} title="Save Design">
           {isSavingDesign ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -75,13 +82,6 @@ export function TopNavigationBar({
         <Button variant="ghost" size="icon" onClick={onExportToTerraformClick} title="Export to Terraform (Experimental)">
             <Code className="h-4 w-4" />
         </Button>
-      </div>
-
-      {/* Right Aligned Items */}
-      <div className="flex items-center gap-1 sm:gap-2">
-        <h2 className="text-base font-medium text-foreground truncate max-w-xs lg:max-w-sm xl:max-w-md hidden md:block">
-          {currentDesignName || "Untitled Design"}
-        </h2>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
