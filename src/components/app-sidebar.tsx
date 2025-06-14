@@ -24,6 +24,7 @@ import { Loader2, Sparkles, Layers, FileText, Search } from 'lucide-react';
 import type { NodeData } from '@/components/design-canvas';
 import type { EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 import type { ComponentGroup, ComponentConfig } from '@/components/designComponents'; // Updated import
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({}); 
 type FormValues = z.infer<typeof formSchema>;
@@ -151,11 +152,23 @@ export function AppSidebar({
 
               <Separator className="my-2" />
               <SidebarGroup className="p-2 space-y-2">
-                <Button type="submit" className="w-full" disabled={isLoadingEvaluation}>
+                 <Button
+                  type="submit"
+                  className={cn(
+                    "w-full rounded-full", // Pill shape
+                    !isLoadingEvaluation && "animate-ai-border-pulse"
+                  )}
+                  disabled={isLoadingEvaluation}
+                >
                   {isLoadingEvaluation ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <Sparkles className="mr-2 h-4 w-4 animate-ai-glow text-primary" />
+                    <Sparkles
+                      className={cn(
+                        "mr-2 h-4 w-4 text-primary-foreground", // Contrast color for icon
+                        !isLoadingEvaluation && "animate-ai-sparkle-pulse"
+                      )}
+                    />
                   )}
                   Evaluate Design
                 </Button>
