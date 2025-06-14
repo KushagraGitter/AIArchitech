@@ -90,6 +90,11 @@ export default {
         'ai-sparkle-pulse': {
           '0%, 100%': { opacity: '0.7', transform: 'scale(0.95)' },
           '50%': { opacity: '1', transform: 'scale(1.1)' },
+        },
+        'animated-gradient': {
+          '0%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
+          '100%': { backgroundPosition: '0% 50%' }
         }
   		},
   		animation: {
@@ -97,6 +102,7 @@ export default {
   			'accordion-up': 'accordion-up 0.2s ease-out',
         'ai-border-pulse': 'ai-border-pulse 2.5s infinite ease-in-out',
         'ai-sparkle-pulse': 'ai-sparkle-pulse 1.8s infinite ease-in-out',
+        'animated-gradient': 'animated-gradient 3s ease infinite',
   		}
   	}
   },

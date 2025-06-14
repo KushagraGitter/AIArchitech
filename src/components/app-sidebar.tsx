@@ -34,7 +34,7 @@ interface AppSidebarProps {
   onSubmit: (data: FormValues) => Promise<void>;
   isLoadingEvaluation: boolean;
   aiFeedback: EvaluateSystemDesignOutput | null;
-  groupedDesignComponents: ComponentGroup[]; // Changed from designComponents
+  groupedDesignComponents: ComponentGroup[]; // Changed
   initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }[];
   onDragStart: (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => void;
   onLoadTemplate: (nodes: Node<NodeData>[], edges: Edge[], templateName: string) => void;
@@ -155,8 +155,9 @@ export function AppSidebar({
                  <Button
                   type="submit"
                   className={cn(
-                    "w-full rounded-full", // Pill shape
-                    !isLoadingEvaluation && "animate-ai-border-pulse"
+                    "w-full rounded-full text-primary-foreground", 
+                    !isLoadingEvaluation && "animate-ai-border-pulse bg-gradient-to-r from-primary via-accent to-primary bg-[size:200%_auto] animate-animated-gradient hover:opacity-90",
+                    isLoadingEvaluation && "bg-primary" // Keep solid primary bg when loading
                   )}
                   disabled={isLoadingEvaluation}
                 >
@@ -165,7 +166,7 @@ export function AppSidebar({
                   ) : (
                     <Sparkles
                       className={cn(
-                        "mr-2 h-4 w-4 text-primary-foreground", // Contrast color for icon
+                        "mr-2 h-4 w-4 text-primary-foreground", 
                         !isLoadingEvaluation && "animate-ai-sparkle-pulse"
                       )}
                     />
