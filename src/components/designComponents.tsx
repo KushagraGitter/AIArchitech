@@ -1,7 +1,8 @@
 
 import type { ComponentConfig } from '@/components/properties-panel';
 import { 
-  StickyNote, Shuffle, Waypoints, Server, Database, Zap, GitFork, Cloud, ShieldCheck, Box, BarChartBig, Users, MessageSquare, Link2, ServerCog, Smartphone, Globe, Network as NetworkIcon, DatabaseZap as DatabaseIcon, Archive as StorageIcon, MessageCircle as MessagingIcon, Shield as SecurityIcon, Activity as MonitoringIcon, Settings2 as ServicesIcon, Users2 as GeneralIcon, Cpu as ComputeIcon, FolderKanban
+  StickyNote, Shuffle, Waypoints, Server, Database, Zap, GitFork, Cloud, ShieldCheck, Box, BarChartBig, Users, MessageSquare, Link2, ServerCog, Smartphone, Globe, Network as NetworkIcon, DatabaseZap as DatabaseIcon, Archive as StorageIcon, MessageCircle as MessagingIcon, Shield as SecurityIcon, Activity as MonitoringIcon, Settings2 as ServicesIcon, Users2 as GeneralIcon, Cpu as ComputeIcon, FolderKanban,
+  Container, CloudCog, Warehouse, Spline, Fingerprint, ScrollText, Workflow, Wrench // New icons
 } from 'lucide-react';
 
 export interface ComponentGroup {
@@ -50,6 +51,31 @@ const computeComponents: ComponentConfig[] = [
       { id: 'maxInstances', label: 'Max Instances', type: 'number'},
     ]
   },
+  {
+    name: "Serverless Function",
+    icon: CloudCog,
+    iconName: "CloudCog",
+    initialProperties: { runtime: "Node.js 18.x", memory: "256MB", timeout: "30s", trigger: "HTTP API" },
+    configurableProperties: [
+      { id: 'runtime', label: 'Runtime', type: 'select', options: ["Node.js 18.x", "Python 3.10", "Java 17", "Go 1.x", "Ruby 3.2", ".NET 6"] },
+      { id: 'memory', label: 'Memory (MB)', type: 'text' },
+      { id: 'timeout', label: 'Timeout (s)', type: 'text' },
+      { id: 'trigger', label: 'Trigger Type', type: 'text' },
+    ]
+  },
+  {
+    name: "Container",
+    icon: Container,
+    iconName: "Container",
+    initialProperties: { image: "nginx:latest", orchestrator: "Kubernetes", replicas: 3, cpuRequest: "0.5", memoryRequest: "512Mi" },
+    configurableProperties: [
+      { id: 'image', label: 'Image', type: 'text' },
+      { id: 'orchestrator', label: 'Orchestrator', type: 'select', options: ["Kubernetes", "Docker Swarm", "ECS", "None"] },
+      { id: 'replicas', label: 'Replicas', type: 'number' },
+      { id: 'cpuRequest', label: 'CPU Request', type: 'text' },
+      { id: 'memoryRequest', label: 'Memory Request', type: 'text' },
+    ]
+  },
 ];
 
 const networkingComponents: ComponentConfig[] = [
@@ -78,6 +104,18 @@ const networkingComponents: ComponentConfig[] = [
     ]
   },
   { name: "CDN", icon: Cloud, iconName: "Cloud", initialProperties: { provider: "Cloudflare", edgeLocations: "global", cachingPolicy: "Standard", WAFEnabled: true }, configurableProperties: [{ id: 'provider', label: 'Provider', type: 'text' }, { id: 'edgeLocations', label: 'Edge Locations', type: 'text' }, { id: 'cachingPolicy', label: 'Caching Policy', type: 'text' }, { id: 'WAFEnabled', label: 'WAF Enabled', type: 'boolean' }] },
+  {
+    name: "Virtual Network",
+    icon: NetworkIcon,
+    iconName: "Network",
+    initialProperties: { type: "VPC/VNet", cidrBlock: "10.0.0.0/16", subnets: "Public, Private", region: "us-east-1" },
+    configurableProperties: [
+      { id: 'type', label: 'Network Type', type: 'select', options: ["VPC (AWS)", "VNet (Azure)", "VPC (GCP)", "Custom"] },
+      { id: 'cidrBlock', label: 'CIDR Block', type: 'text' },
+      { id: 'subnets', label: 'Subnet Configuration', type: 'textarea' },
+      { id: 'region', label: 'Region', type: 'text' },
+    ]
+  },
 ];
 
 const databaseComponents: ComponentConfig[] = [
@@ -109,6 +147,19 @@ const databaseComponents: ComponentConfig[] = [
     ]
   },
   { name: "DB Router/Coordinator", icon: ServerCog, iconName: "ServerCog", initialProperties: { type: "ProxySQL/Vitess", strategy: "Sharding Coordination", connectionPooling: "enabled", queryCaching: "disabled" }, configurableProperties: [{ id: 'type', label: 'Router Type', type: 'text' }, { id: 'strategy', label: 'Strategy', type: 'text' }, {id: 'connectionPooling', label: 'Connection Pooling', type: 'boolean'}, {id: 'queryCaching', label: 'Query Caching', type: 'boolean'}] },
+  {
+    name: "Data Warehouse",
+    icon: Warehouse,
+    iconName: "Warehouse",
+    initialProperties: { type: "Snowflake", nodeType: "Medium", clusterSize: "4 nodes", dataSources: "S3, Kafka", queryLanguage: "SQL" },
+    configurableProperties: [
+      { id: 'type', label: 'DW Type', type: 'select', options: ["Snowflake", "BigQuery", "Redshift", "Azure Synapse", "ClickHouse", "Other"] },
+      { id: 'nodeType', label: 'Node Type/Size', type: 'text' },
+      { id: 'clusterSize', label: 'Cluster Size/Concurrency', type: 'text' },
+      { id: 'dataSources', label: 'Data Sources', type: 'textarea' },
+      { id: 'queryLanguage', label: 'Query Language', type: 'text' },
+    ]
+  },
 ];
 
 const storageComponents: ComponentConfig[] = [
@@ -142,14 +193,51 @@ const messagingComponents: ComponentConfig[] = [
       { id: 'deadLetterQueue', label: 'Dead Letter Queue', type: 'select', options: ["enabled", "disabled"] },
     ]
   },
+  {
+    name: "Event Bus",
+    icon: Spline,
+    iconName: "Spline",
+    initialProperties: { type: "AWS EventBridge", schemaRegistry: "enabled", targets: "Lambda, SQS", filtering: "Attribute-based" },
+    configurableProperties: [
+      { id: 'type', label: 'Bus Type', type: 'select', options: ["AWS EventBridge", "Azure Event Grid", "Google Cloud Eventarc", "Custom (e.g., Kafka based)", "NATS JetStream"] },
+      { id: 'schemaRegistry', label: 'Schema Registry', type: 'select', options: ["enabled", "disabled", "external"] },
+      { id: 'targets', label: 'Typical Targets', type: 'textarea' },
+      { id: 'filtering', label: 'Filtering Mechanism', type: 'text' },
+    ]
+  },
 ];
 
 const securityComponents: ComponentConfig[] = [
   { name: "Firewall", icon: ShieldCheck, iconName: "ShieldCheck", initialProperties: { type: "WAF", ruleset: "OWASP Top 10", deployment: "Edge", logging: "enabled" }, configurableProperties: [{ id: 'type', label: 'Type', type: 'select', options: ["WAF", "Network Firewall", "NGFW"] }, { id: 'ruleset', label: 'Ruleset', type: 'text' }, {id: 'deployment', label: 'Deployment Location', type: 'text'}, {id: 'logging', label: 'Logging', type: 'select', options: ["enabled", "disabled"]}] },
+  {
+    name: "Identity Provider",
+    icon: Fingerprint,
+    iconName: "Fingerprint",
+    initialProperties: { type: "Keycloak", protocols: "OAuth2, OpenID Connect", userStore: "Internal DB", mfa: "TOTP enabled" },
+    configurableProperties: [
+      { id: 'type', label: 'IdP Type', type: 'select', options: ["Keycloak", "Auth0", "Okta", "AWS Cognito", "Azure AD B2C", "Custom"] },
+      { id: 'protocols', label: 'Supported Protocols', type: 'text' },
+      { id: 'userStore', label: 'User Store', type: 'text' },
+      { id: 'mfa', label: 'MFA Support', type: 'text' },
+    ]
+  },
 ];
 
 const monitoringComponents: ComponentConfig[] = [
   { name: "Monitoring", icon: BarChartBig, iconName: "BarChartBig", initialProperties: { tool: "Prometheus/Grafana", metrics: "Latency, Error Rate, Traffic, Saturation", alerting: "PagerDuty", dashboarding: "Grafana" }, configurableProperties: [{ id: 'tool', label: 'Tool', type: 'text' }, { id: 'metrics', label: 'Key Metrics Monitored', type: 'text' }, {id: 'alerting', label: 'Alerting System', type: 'text'}, {id: 'dashboarding', label: 'Dashboarding Tool', type: 'text'}] },
+  {
+    name: "Logging System",
+    icon: ScrollText,
+    iconName: "ScrollText",
+    initialProperties: { type: "ELK Stack", ingestion: "Filebeat/Logstash", storage: "Elasticsearch", visualization: "Kibana", retention: "30 days" },
+    configurableProperties: [
+      { id: 'type', label: 'System Type', type: 'select', options: ["ELK Stack", "Splunk", "Grafana Loki", "CloudWatch Logs", "Google Cloud Logging", "Datadog Logs"] },
+      { id: 'ingestion', label: 'Ingestion Method', type: 'text' },
+      { id: 'storage', label: 'Storage Backend', type: 'text' },
+      { id: 'visualization', label: 'Visualization Tool', type: 'text' },
+      { id: 'retention', label: 'Log Retention Period', type: 'text' },
+    ]
+  },
 ];
 
 const serviceComponents: ComponentConfig[] = [
@@ -163,6 +251,21 @@ const clientExternalComponents: ComponentConfig[] = [
     { name: "External API", icon: Globe, iconName: "Globe", initialProperties: { serviceName: "Payment Gateway", purpose: "Processes payments", integration: "Webhook/SDK", reliability: "High (SLA based)" }, configurableProperties: [{ id: 'serviceName', label: 'Service Name', type: 'text' }, {id: 'purpose', label: 'Purpose', type: 'text'}, {id: 'integration', label: 'Integration Method', type: 'text'}, {id: 'reliability', label: 'Reliability Notes', type: 'text'}] },
 ];
 
+const devOpsComponents: ComponentConfig[] = [
+  {
+    name: "CI/CD Pipeline",
+    icon: Workflow,
+    iconName: "Workflow",
+    initialProperties: { tool: "Jenkins", stages: "Build, Test, Deploy", trigger: "Git push", repository: "GitHub" },
+    configurableProperties: [
+      { id: 'tool', label: 'CI/CD Tool', type: 'select', options: ["Jenkins", "GitHub Actions", "GitLab CI", "CircleCI", "Azure DevOps", "Google Cloud Build"] },
+      { id: 'stages', label: 'Pipeline Stages', type: 'textarea' },
+      { id: 'trigger', label: 'Trigger Mechanism', type: 'text' },
+      { id: 'repository', label: 'Source Repository', type: 'text' },
+    ]
+  },
+];
+
 
 export const groupedDesignComponents: ComponentGroup[] = [
   { groupName: "General", groupIcon: GeneralIcon, components: generalComponents },
@@ -174,7 +277,9 @@ export const groupedDesignComponents: ComponentGroup[] = [
   { groupName: "Security", groupIcon: SecurityIcon, components: securityComponents },
   { groupName: "Monitoring", groupIcon: MonitoringIcon, components: monitoringComponents },
   { groupName: "Application Services", groupIcon: ServicesIcon, components: serviceComponents },
+  { groupName: "DevOps", groupIcon: Wrench, components: devOpsComponents },
   { groupName: "Client & External", groupIcon: FolderKanban, components: clientExternalComponents },
 ];
 
 export const designComponents: ComponentConfig[] = groupedDesignComponents.flatMap(group => group.components);
+
