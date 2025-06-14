@@ -78,7 +78,7 @@ const AUTOSAVE_DELAY_MS = 2000;
 
 
 const createDefaultNotes = (): Node<NodeData>[] => {
-  const infoNoteConfig = allDesignComponents.find(group => group.groupName === "General")?.components.find(c => c.name === "Info Note");
+  const infoNoteConfig = allDesignComponents.find(c => c.name === "Info Note");
   if (!infoNoteConfig) return [];
 
   return [
@@ -536,7 +536,7 @@ function AppContent() {
   };
   
   const selectedComponentConfig = selectedNode 
-    ? allDesignComponents.flatMap(group => group.components).find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName || c.name === selectedNode.data.label.replace(/ \(.+\)$/, '')) 
+    ? allDesignComponents.find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName || c.name === selectedNode.data.label.replace(/ \(.+\)$/, '')) 
     : undefined;
 
 
