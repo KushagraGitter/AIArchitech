@@ -48,40 +48,41 @@ export function TopNavigationBar({
 }: TopNavigationBarProps) {
   return (
     <div className="h-14 flex items-center justify-between px-4 border-b bg-card text-card-foreground sticky top-0 z-30">
+      {/* Left Aligned Items */}
       <div className="flex items-center gap-1 sm:gap-2">
         <SidebarTrigger className="md:hidden -ml-2" />
-        <div className="hidden md:flex items-center"> <Logo variant="icon" /> </div>
-        <h1 className="text-xl font-bold text-primary whitespace-nowrap overflow-hidden md:hidden">Architech AI</h1>
+        
+        <div className="block md:hidden"> {/* Mobile: Full Logo with text */}
+          <Logo variant="full" />
+        </div>
+        <div className="hidden md:block"> {/* Desktop: Icon Logo */}
+          <Logo variant="icon" />
+        </div>
 
-        <Button variant="secondary" size="sm" onClick={onSaveDesign} disabled={isSavingDesign || !canSave}>
+        <Button variant="ghost" size="icon" onClick={onSaveDesign} disabled={isSavingDesign || !canSave} title="Save Design">
           {isSavingDesign ? (
-            <Loader2 className="mr-0 md:mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <SaveIcon className="mr-0 md:mr-2 h-4 w-4" />
+            <SaveIcon className="h-4 w-4" />
           )}
-          <span className="hidden md:inline">Save</span>
         </Button>
-        <Button variant="ghost" size="sm" onClick={onExportDesign} title="Export Design as JSON">
-            <Download className="mr-0 md:mr-2 h-4 w-4" />
-            <span className="hidden md:inline">Export JSON</span>
+        <Button variant="ghost" size="icon" onClick={onExportDesign} title="Export Design as JSON">
+            <Download className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={onImportDesignClick} title="Import Design from JSON">
-            <Upload className="mr-0 md:mr-2 h-4 w-4" />
-            <span className="hidden md:inline">Import JSON</span>
+        <Button variant="ghost" size="icon" onClick={onImportDesignClick} title="Import Design from JSON">
+            <Upload className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={onExportToTerraformClick} title="Export to Terraform (Experimental)">
-            <Code className="mr-0 md:mr-2 h-4 w-4" />
-            <span className="hidden md:inline">Export IaC</span>
+        <Button variant="ghost" size="icon" onClick={onExportToTerraformClick} title="Export to Terraform (Experimental)">
+            <Code className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:block">
-        <h2 className="text-base font-medium text-foreground truncate max-w-xs lg:max-w-sm xl:max-w-md">
+      {/* Right Aligned Items */}
+      <div className="flex items-center gap-1 sm:gap-2">
+        <h2 className="text-base font-medium text-foreground truncate max-w-xs lg:max-w-sm xl:max-w-md hidden md:block">
           {currentDesignName || "Untitled Design"}
         </h2>
-      </div>
 
-      <div className="flex items-center gap-1 sm:gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -101,12 +102,12 @@ export function TopNavigationBar({
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onMyDesignsClick}>
+                <DropdownMenuItem onClick={onMyDesignsClick} className="cursor-pointer">
                   <ListChecks className="mr-2 h-4 w-4" />
                   <span>My Designs</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onLogout}>
+                <DropdownMenuItem onClick={onLogout} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
