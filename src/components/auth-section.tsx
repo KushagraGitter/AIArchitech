@@ -92,7 +92,11 @@ export function AuthSection() {
                 </Alert>
               )}
               <Button type="submit" className="w-full" disabled={authLoading}>
-                {authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (isLoginMode ? "Login" : "Sign Up")}
+                {authLoading ? (
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (isLoginMode ? "Login" : "Sign Up")}
               </Button>
             </form>
           </Form>
