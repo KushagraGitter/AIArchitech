@@ -20,7 +20,10 @@ const getIconComponent = (iconName: string): React.ElementType => {
 export function CustomNode({ data, selected }: NodeProps<{ label: string; iconName: string; properties?: Record<string, any> }>) {
   const IconComponent = getIconComponent(data.iconName);
   const isInfoNote = data.label === "Info Note";
-  const nodeLabel = data.properties?.title && isInfoNote ? data.properties.title : data.label;
+
+  const nodeLabel = isInfoNote
+    ? data.properties?.title || 'Info Note'
+    : data.properties?.name || data.label;
 
   const noteBackgroundColor = 'bg-yellow-100 dark:bg-yellow-800/30';
   const noteBorderColor = 'border-yellow-400 dark:border-yellow-600';
