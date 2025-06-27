@@ -24,7 +24,7 @@ const NodeDataSchema = z.object({
 
 const NodeSchema = z.object({
   id: z.string().describe("A unique identifier for the node (e.g., 'node-1', 'web-server-0')."),
-  type: z.literal('custom').describe("The type of the node, which must be 'custom'."),
+  type: z.string().describe("The type of the node, which must be 'custom'."),
   position: NodePositionSchema.describe("The x and y coordinates for the node's position on the canvas."),
   data: NodeDataSchema,
 });
