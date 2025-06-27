@@ -57,8 +57,9 @@ import { useTheme } from "next-themes";
 import { AuthSection } from './auth-section';
 import { AppSidebar } from './app-sidebar';
 import { TopNavigationBar } from './top-navigation-bar';
-import { designComponents as allDesignComponents, groupedDesignComponents } from './designComponents';
+import { designComponents, groupedDesignComponents } from './designComponents';
 import { initialTemplates } from './initialTemplates';
+import { generateDiagram } from '@/ai/flows/generate-diagram-flow';
 
 const formSchema = z.object({
   // Minimal schema, actual fields are dynamic
@@ -78,7 +79,7 @@ const AUTOSAVE_DELAY_MS = 2000;
 
 
 const createDefaultNotes = (): Node<NodeData>[] => {
-  const infoNoteConfig = allDesignComponents.find(c => c.name === "Info Note");
+  const infoNoteConfig = designComponents.find(c => c.name === "Info Note");
   if (!infoNoteConfig) return [];
 
   return [
@@ -116,6 +117,7 @@ const createDefaultNotes = (): Node<NodeData>[] => {
 
 function AppContent() {
   const [isLoadingEvaluation, setIsLoadingEvaluation] = useState(false);
+  const [isGeneratingDesign, setIsGeneratingDesign] = useState(false);
   const [isSavingDesign, setIsSavingDesign] = useState(false);
   const [isLoadingDesigns, setIsLoadingDesigns] = useState(false);
   const [aiFeedback, setAiFeedback] = useState<EvaluateSystemDesignOutput | null>(null);
@@ -536,7 +538,7 @@ function AppContent() {
   };
   
   const selectedComponentConfig = selectedNode 
-    ? allDesignComponents.find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName || c.name === selectedNode.data.label.replace(/ \(.+\)$/, '')) 
+    ? designComponents.find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName || c.name === selectedNode.data.label.replace(/ \(.+\)$/, '')) 
     : undefined;
 
 
@@ -625,6 +627,54 @@ function AppContent() {
       });
     } finally {
       setIsLoadingEvaluation(false);
+    }
+  };
+
+  const handleGenerateDesign = async () => {
+    setIsGeneratingDesign(true);
+    setAiFeedback(null);
+
+    try {
+      const { extractedRequirements } = extractContextFromDiagram();
+      if (!extractedRequirements || extractedRequirements.trim().length < 10 || extractedRequirements.includes("No feature requirements")) {
+        toast({
+          title: "Requirements Needed",
+          description: "Please provide detailed feature requirements in an 'Info Note' on the canvas before generating a design.",
+          variant: "destructive",
+        });
+        setIsGeneratingDesign(false);
+        return;
+      }
+
+      const result = await generateDiagram({ requirements: extractedRequirements });
+
+      if (canvasRef.current) {
+        canvasRef.current.loadTemplate(result.nodes, result.edges);
+        setSelectedNode(null);
+        setChatMessages([]);
+
+        const newName = "Generated Design (Unsaved)";
+        setCurrentDesignName(newName);
+        setCurrentDesignId(null);
+        setCanvasLoadedDesignId(null);
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+        handleSetDiagramChanged(false);
+
+        toast({
+          title: "Diagram Generated!",
+          description: "A new design has been generated from your requirements. Save it to keep your changes.",
+        });
+      }
+    } catch (error) {
+      console.error("Error generating design:", error);
+      toast({
+        title: "Generation Failed",
+        description: `The AI could not generate a diagram. ${error instanceof Error ? error.message : "Please check the console."}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingDesign(false);
     }
   };
 
@@ -912,7 +962,8 @@ function AppContent() {
         initialTemplates={initialTemplates}
         onDragStart={onDragStart}
         onLoadTemplate={loadTemplate}
-        // onNewDesignButtonClick={handleNewDesignButtonClick} // Removed prop
+        isGeneratingDesign={isGeneratingDesign}
+        onGenerateDesign={handleGenerateDesign}
       />
       
       <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col">
