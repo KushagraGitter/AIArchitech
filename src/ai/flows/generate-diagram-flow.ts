@@ -20,7 +20,9 @@ const NodePositionSchema = z.object({
 const NodeDataSchema = z.object({
   label: z.string().describe("The display name of the node. This will be visible on the canvas. It can be a generic component name like 'Web Server' or a specific service name like 'User Authentication Service'."),
   iconName: z.string().describe("The name of the Lucide icon for the component. MUST be one of the provided iconNames."),
-  properties: z.record(z.any()).describe("An object containing the component's specific properties. Should include a 'name' property matching the 'data.label'."),
+  properties: z.object({
+    name: z.string().describe("The name of the component, which MUST match the node's label."),
+  }).catchall(z.any()).describe("An object containing the component's specific properties. It MUST include a 'name' property that is identical to the 'data.label'."),
 });
 
 const NodeSchema = z.object({
