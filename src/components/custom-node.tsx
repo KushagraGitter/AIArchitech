@@ -5,6 +5,7 @@ import type { NodeProps } from 'reactflow';
 import { Handle, Position } from 'reactflow';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import * as LucideIcons from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { NodeData } from './design-canvas';
 
 // Helper to get Lucide icon component by name (case-insensitive for flexibility)
@@ -55,24 +56,26 @@ export function CustomNode({ data, selected }: NodeProps<NodeData>) {
 
   const noteBackgroundColor = 'bg-yellow-100 dark:bg-yellow-800/30';
   const noteBorderColor = 'border-yellow-400 dark:border-yellow-600';
-  const componentBorderColor = selected ? 'border-primary' : 'border-card';
+
+  const iconColor = selected ? 'text-primary' : (data.color || 'text-primary');
+  const borderColor = selected ? 'border-primary' : (data.borderColor || 'border-card');
   
   return (
     <Card
-      className={`w-64 border-2 rounded-lg transition-all duration-150 ease-in-out
-                  ${isInfoNote ? `${noteBackgroundColor} ${noteBorderColor}` : 'bg-card'} 
-                  ${selected ? 'shadow-2xl' : 'shadow-md'}
-                  ${selected && !isInfoNote ? 'border-primary' : ''}
-                  ${!isInfoNote ? componentBorderColor : ''}
-                  ${!isInfoNote && !selected ? 'hover:shadow-xl' : ''}
-                  `}
+      className={cn(
+        'w-64 border-2 rounded-lg transition-all duration-150 ease-in-out',
+        selected ? 'shadow-2xl' : 'shadow-md',
+        isInfoNote 
+          ? `${noteBackgroundColor} ${noteBorderColor}` 
+          : `bg-card ${borderColor}`,
+        !isInfoNote && !selected ? 'hover:shadow-xl' : ''
+      )}
     >
       <CardHeader 
         className="p-3 flex flex-row items-center gap-3 space-y-0"
       >
         <IconComponent 
-            className={`h-6 w-6 shrink-0 
-            ${selected && !isInfoNote ? 'text-primary' : isInfoNote ? 'text-yellow-700 dark:text-yellow-400' : 'text-primary'}`} 
+            className={cn('h-6 w-6 shrink-0', isInfoNote ? 'text-yellow-700 dark:text-yellow-400' : iconColor)} 
         />
         <CardTitle 
             className="text-base font-semibold truncate"

@@ -41,6 +41,8 @@ export interface NodeData {
   label: string;
   iconName: string;
   properties: Record<string, any>;
+  color?: string;
+  borderColor?: string;
 }
 
 export interface DesignCanvasHandles {
@@ -159,7 +161,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
 
       if (!dataString) return;
 
-      const { name, iconName, properties: initialProperties } = JSON.parse(dataString);
+      const { name, iconName, properties: initialProperties, color, borderColor } = JSON.parse(dataString);
 
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX - reactFlowBounds.left,
@@ -173,7 +175,9 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
         data: {
           label: name,
           iconName: iconName,
-          properties: initialProperties || {}
+          properties: initialProperties || {},
+          color,
+          borderColor,
         },
       };
 

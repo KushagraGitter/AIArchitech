@@ -41,7 +41,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, MessageSquarePlus, Copy, AlertTriangle } from 'lucide-react';
 
 import { DesignCanvas, type DesignCanvasHandles, type NodeData } from '@/components/design-canvas';
-import { PropertiesPanel } from '@/components/properties-panel';
+import { PropertiesPanel, type ComponentConfig } from '@/components/properties-panel';
 import type { EvaluateSystemDesignInput, EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 import { evaluateSystemDesign } from '@/ai/flows/evaluate-system-design';
 import type { GenerateTerraformInput, GenerateTerraformOutput } from '@/ai/flows/generate-terraform-flow';
@@ -404,8 +404,14 @@ function AppContent() {
   }, [currentUser, initialDialogFlowPending, isLoadingDesigns, userDesigns, currentDesignId, handleOpenNewDesignDialog]);
 
 
-  const onDragStart = (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => {
-    const nodeData = { name: componentName, iconName: iconName, properties: initialProperties || {} };
+  const onDragStart = (event: React.DragEvent, component: ComponentConfig, color: string, borderColor: string) => {
+    const nodeData = { 
+        name: component.name, 
+        iconName: component.iconName, 
+        properties: component.initialProperties || {},
+        color: color,
+        borderColor: borderColor,
+    };
     event.dataTransfer.setData('application/reactflow', JSON.stringify(nodeData));
     event.dataTransfer.effectAllowed = 'move';
   };

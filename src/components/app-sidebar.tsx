@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import type { Node, Edge } from 'reactflow';
@@ -25,7 +25,6 @@ import type { NodeData } from '@/components/design-canvas';
 import type { EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 import type { ComponentGroup, ComponentConfig } from '@/components/designComponents'; 
 import { cn } from '@/lib/utils';
-import { useMemo, useState } from 'react';
 
 const formSchema = z.object({}); 
 type FormValues = z.infer<typeof formSchema>;
@@ -37,7 +36,7 @@ interface AppSidebarProps {
   aiFeedback: EvaluateSystemDesignOutput | null;
   groupedDesignComponents: ComponentGroup[]; 
   initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }[];
-  onDragStart: (event: React.DragEvent, componentName: string, iconName: string, initialProperties: Record<string, any>) => void;
+  onDragStart: (event: React.DragEvent, component: ComponentConfig, color: string, borderColor: string) => void;
   onLoadTemplate: (nodes: Node<NodeData>[], edges: Edge[], templateName: string) => void;
   isGeneratingDesign: boolean;
   onGenerateDesign: () => void;
@@ -111,11 +110,11 @@ export function AppSidebar({
                             <div
                                 key={component.name}
                                 draggable={true}
-                                onDragStart={(event) => onDragStart(event, component.name, component.iconName, component.initialProperties)}
+                                onDragStart={(event) => onDragStart(event, component, group.color, group.borderColor)}
                                 className="flex items-center gap-3 p-2 rounded-lg border bg-card hover:bg-accent hover:text-accent-foreground cursor-grab group-data-[collapsible=icon]:justify-center"
                                 title={component.name}
                             >
-                                <component.icon className="h-6 w-6 shrink-0 text-primary" />
+                                <component.icon className={cn("h-6 w-6 shrink-0", group.color)} />
                                 <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                                     <span className="font-semibold text-sm leading-tight text-card-foreground">{component.name}</span>
                                     <span className="text-xs text-muted-foreground">{component.description}</span>

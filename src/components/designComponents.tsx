@@ -10,6 +10,8 @@ import {
 export interface ComponentGroup {
   groupName: string;
   groupIcon: React.ElementType;
+  color: string;
+  borderColor: string;
   components: ComponentConfig[];
 }
 
@@ -528,17 +530,17 @@ const devOpsComponents: ComponentConfig[] = [
 
 
 export const groupedDesignComponents: ComponentGroup[] = [
-  { groupName: "General", groupIcon: GeneralIcon, components: generalComponents },
-  { groupName: "Compute", groupIcon: ComputeIcon, components: computeComponents },
-  { groupName: "Networking", groupIcon: NetworkIcon, components: networkingComponents },
-  { groupName: "Databases", groupIcon: DatabaseIcon, components: databaseComponents },
-  { groupName: "Storage & Caching", groupIcon: StorageIcon, components: storageComponents },
-  { groupName: "Messaging", groupIcon: MessagingIcon, components: messagingComponents },
-  { groupName: "Security", groupIcon: SecurityIcon, components: securityComponents },
-  { groupName: "Monitoring", groupIcon: MonitoringIcon, components: monitoringComponents },
-  { groupName: "Application Services", groupIcon: ServicesIcon, components: serviceComponents },
-  { groupName: "DevOps", groupIcon: Wrench, components: devOpsComponents },
-  { groupName: "Client & External", groupIcon: FolderKanban, components: clientExternalComponents },
+  { groupName: "General", groupIcon: GeneralIcon, color: "text-slate-500", borderColor: "border-slate-500", components: generalComponents },
+  { groupName: "Compute", groupIcon: ComputeIcon, color: "text-sky-500", borderColor: "border-sky-500", components: computeComponents },
+  { groupName: "Networking", groupIcon: NetworkIcon, color: "text-amber-500", borderColor: "border-amber-500", components: networkingComponents },
+  { groupName: "Databases", groupIcon: DatabaseIcon, color: "text-violet-500", borderColor: "border-violet-500", components: databaseComponents },
+  { groupName: "Storage & Caching", groupIcon: StorageIcon, color: "text-rose-500", borderColor: "border-rose-500", components: storageComponents },
+  { groupName: "Messaging", groupIcon: MessagingIcon, color: "text-teal-500", borderColor: "border-teal-500", components: messagingComponents },
+  { groupName: "Security", groupIcon: SecurityIcon, color: "text-red-500", borderColor: "border-red-500", components: securityComponents },
+  { groupName: "Monitoring", groupIcon: MonitoringIcon, color: "text-green-500", borderColor: "border-green-500", components: monitoringComponents },
+  { groupName: "Application Services", groupIcon: ServicesIcon, color: "text-indigo-500", borderColor: "border-indigo-500", components: serviceComponents },
+  { groupName: "DevOps", groupIcon: Wrench, color: "text-gray-500", borderColor: "border-gray-500", components: devOpsComponents },
+  { groupName: "Client & External", groupIcon: FolderKanban, color: "text-orange-500", borderColor: "border-orange-500", components: clientExternalComponents },
 ];
 
 export const designComponents: ComponentConfig[] = groupedDesignComponents.flatMap(group => group.components);
