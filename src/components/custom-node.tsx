@@ -19,14 +19,16 @@ const getIconComponent = (iconName: string): React.ElementType => {
   return foundIconKey ? icons[foundIconKey] : LucideIcons.HelpCircle; // Default if not found
 };
 
-// Helper to get a descriptive string from node properties
+// Helper to get a primary descriptive string from node properties
 const getNodeDescription = (data: NodeData): string => {
     if (!data.properties) return '';
 
     const props = data.properties;
+    // For specific components, use a descriptive property, otherwise show the generic type
     switch (data.label) {
         case 'Web Server':
-            return props.framework || 'Web framework';
+        case 'App Server':
+            return props.framework || props.language || 'Application';
         case 'API Gateway':
             return props.protocol || 'Handles API traffic';
         case 'Database':
@@ -40,9 +42,42 @@ const getNodeDescription = (data: NodeData): string => {
         case 'Serverless Function':
             return props.runtime || 'On-demand compute';
         default:
-            return props.type || props.language || props.serviceName || '';
+            return props.type || props.serviceName || data.label;
     }
 };
+
+// Helper to get a secondary descriptive string from node properties
+const getSecondaryNodeDescription = (data: NodeData): { label: string; value: React.ReactNode } | null => {
+    if (!data.properties) return null;
+    const props = data.properties;
+
+    switch (data.label) {
+        case 'Web Server':
+        case 'App Server':
+            return props.instanceType ? { label: 'Instance', value: props.instanceType } : null;
+        case 'API Gateway':
+            return props.rateLimit ? { label: 'Rate Limit', value: props.rateLimit } : null;
+        case 'Database':
+            return props.role ? { label: 'Role', value: props.role } : null;
+        case 'Load Balancer':
+            return props.instanceCount ? { label: 'Instances', value: props.instanceCount } : null;
+        case 'Cache':
+            return props.pattern ? { label: 'Pattern', value: props.pattern } : null;
+        case 'Message Queue':
+            return props.deliveryGuarantee ? { label: 'Delivery', value: props.deliveryGuarantee } : null;
+        case 'Serverless Function':
+            return props.memory ? { label: 'Memory', value: `${props.memory}` } : null;
+        case 'CDN':
+            return props.provider ? { label: 'Provider', value: props.provider } : null;
+        case 'CI/CD Pipeline':
+            return props.tool ? { label: 'Tool', value: props.tool } : null;
+        case 'Storage (S3/Blob)':
+            return props.bucketType ? { label: 'Storage Tier', value: props.bucketType } : null;
+        default:
+            return null;
+    }
+};
+
 
 export function CustomNode({ data, selected }: NodeProps<NodeData>) {
   const IconComponent = getIconComponent(data.iconName);
@@ -53,6 +88,8 @@ export function CustomNode({ data, selected }: NodeProps<NodeData>) {
     : data.properties?.name || data.label;
     
   const nodeDescription = isInfoNote ? '' : getNodeDescription(data);
+  const secondaryDescription = isInfoNote ? null : getSecondaryNodeDescription(data);
+
 
   const noteBackgroundColor = 'bg-yellow-100 dark:bg-yellow-800/30';
   const noteBorderColor = 'border-yellow-400 dark:border-yellow-600';
@@ -100,12 +137,17 @@ export function CustomNode({ data, selected }: NodeProps<NodeData>) {
       
       {!isInfoNote && (
         <>
-        <CardFooter className="p-3 pt-0">
-             <div className="flex items-center gap-1.5 text-xs text-green-600">
-                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                Ready
-            </div>
-        </CardFooter>
+          {secondaryDescription && (
+            <CardFooter className="p-3 pt-0">
+              <div className="flex items-center justify-between text-xs text-muted-foreground w-full">
+                <span className="font-medium">{secondaryDescription.label}:</span>
+                <span className="truncate ml-2 font-mono text-foreground bg-muted px-1.5 py-0.5 rounded">
+                  {String(secondaryDescription.value)}
+                </span>
+              </div>
+            </CardFooter>
+          )}
+
           <Handle 
             type="target" 
             position={Position.Top} 

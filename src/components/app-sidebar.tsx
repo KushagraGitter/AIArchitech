@@ -79,10 +79,10 @@ export function AppSidebar({
       <ShadSidebarContent className="p-0">
         <ScrollArea className="h-full">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
               
-              <SidebarGroup className="p-2 space-y-2 sticky top-0 bg-sidebar z-10 border-b border-sidebar-border">
-                  <h3 className="text-lg font-semibold px-2 flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+              <div className="sticky top-0 bg-sidebar z-10 border-b border-sidebar-border px-4 py-3 space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2 group-data-[collapsible=icon]:hidden">
                     <BookCopy className="h-5 w-5"/>
                     Node Library
                   </h3>
@@ -97,12 +97,12 @@ export function AppSidebar({
                         />
                          <Search className="h-6 w-6 hidden group-data-[collapsible=icon]:block mx-auto" />
                     </div>
-              </SidebarGroup>
+              </div>
 
-              <div className="p-2 space-y-4">
+              <div className="p-4 space-y-4 flex-1">
                 {filteredComponentGroups.map((group) => (
                     <div key={group.groupName}>
-                        <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider group-data-[collapsible=icon]:hidden">
+                        <SidebarGroupLabel className="px-0 text-xs uppercase tracking-wider group-data-[collapsible=icon]:hidden">
                             {group.groupName}
                         </SidebarGroupLabel>
                          <div className="mt-2 space-y-1 group-data-[collapsible=icon]:mt-0">
@@ -125,7 +125,7 @@ export function AppSidebar({
                     </div>
                 ))}
                  <div>
-                    <SidebarGroupLabel className="px-2 text-xs uppercase tracking-wider group-data-[collapsible=icon]:hidden">
+                    <SidebarGroupLabel className="px-0 text-xs uppercase tracking-wider group-data-[collapsible=icon]:hidden">
                         Templates
                     </SidebarGroupLabel>
                     <div className="mt-2 space-y-1 group-data-[collapsible=icon]:mt-0">
@@ -147,9 +147,8 @@ export function AppSidebar({
                   </div>
               </div>
 
-
-              <Separator className="my-2" />
-              <SidebarGroup className="p-2 space-y-2">
+              <Separator className="my-0" />
+              <div className="p-4">
                  <div className="grid grid-cols-2 gap-2 group-data-[collapsible=icon]:grid-cols-1">
                     <Button
                       type="button"
@@ -187,29 +186,31 @@ export function AppSidebar({
                       <span className="group-data-[collapsible=icon]:hidden">Evaluate</span>
                     </Button>
                   </div>
-              </SidebarGroup>
+              </div>
             </form>
           </Form>
 
           {(isLoadingEvaluation || isGeneratingDesign) && (
-            <Card className="m-4 shadow-none border-dashed">
-              <CardContent className="p-6 flex flex-col items-center justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                <p className="text-muted-foreground">
-                  {isGeneratingDesign ? "AI is generating your design..." : "AI is analyzing your design..."}
-                </p>
-              </CardContent>
-            </Card>
+            <div className="p-4">
+              <Card className="shadow-none border-dashed">
+                <CardContent className="p-6 flex flex-col items-center justify-center">
+                  <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                  <p className="text-muted-foreground">
+                    {isGeneratingDesign ? "AI is generating your design..." : "AI is analyzing your design..."}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {aiFeedback && !isLoadingEvaluation && !isGeneratingDesign && (
             <>
             <Separator className="my-2" />
-            <SidebarGroup className="p-2">
-              <SidebarGroupLabel className="flex items-center gap-2">
+            <div className="p-4 space-y-2">
+              <h3 className="flex items-center gap-2 text-base font-semibold">
                 <Sparkles className="h-4 w-4 text-primary" /> AI Feedback
-              </SidebarGroupLabel>
-              <Card className="shadow-none bg-card mt-2">
+              </h3>
+              <Card className="shadow-none bg-card">
                 <CardHeader className="pb-2 pt-4 px-4">
                   <CardTitle className="text-base">Overall Assessment</CardTitle>
                 </CardHeader>
@@ -217,7 +218,7 @@ export function AppSidebar({
                    {aiFeedback.overallAssessment || "No overall assessment provided."}
                 </CardContent>
               </Card>
-              <Card className="shadow-none bg-card mt-2">
+              <Card className="shadow-none bg-card">
                 <CardContent className="p-0">
                   <Accordion type="multiple" className="w-full" defaultValue={["strengths"]}>
                      <AccordionItem value="strengths">
@@ -288,7 +289,7 @@ export function AppSidebar({
                   </Accordion>
                 </CardContent>
               </Card>
-            </SidebarGroup>
+            </div>
             </>
           )}
         </ScrollArea>
