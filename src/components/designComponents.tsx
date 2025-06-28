@@ -2,7 +2,9 @@
 import type { ComponentConfig } from '@/components/properties-panel';
 import { 
   StickyNote, Shuffle, Waypoints, Server, Database, Zap, GitFork, Cloud, ShieldCheck, Box, BarChartBig, Users, MessageSquare, Link2, ServerCog, Smartphone, Globe, Network as NetworkIcon, DatabaseZap as DatabaseIcon, Archive as StorageIcon, MessageCircle as MessagingIcon, Shield as SecurityIcon, Activity as MonitoringIcon, Settings2 as ServicesIcon, Users2 as GeneralIcon, Cpu as ComputeIcon, FolderKanban,
-  Container, CloudCog, Warehouse, Spline, Fingerprint, ScrollText, Workflow, Wrench, Shapes
+  Container, CloudCog, Warehouse, Spline, Fingerprint, ScrollText, Workflow, Wrench, Shapes,
+  // New Icons
+  GitMerge, Search, Clock, KeyRound, LineChart, BrainCircuit
 } from 'lucide-react';
 
 export interface ComponentGroup {
@@ -89,6 +91,34 @@ const computeComponents: ComponentConfig[] = [
       { id: 'memoryRequest', label: 'Memory Request', type: 'text' },
     ]
   },
+  {
+    name: "Batch Job",
+    icon: Clock,
+    iconName: "Clock",
+    initialProperties: { name: "Batch Job", framework: "Spring Batch", trigger: "Cron (daily)", compute: "ECS Task", inputSource: "S3 Bucket", outputSink: "Data Warehouse" },
+    configurableProperties: [
+      nameProperty,
+      { id: 'framework', label: 'Framework', type: 'text' },
+      { id: 'trigger', label: 'Trigger', type: 'text' },
+      { id: 'compute', label: 'Compute Type', type: 'text' },
+      { id: 'inputSource', label: 'Input Source', type: 'text' },
+      { id: 'outputSink', label: 'Output Sink', type: 'text' }
+    ]
+  },
+  {
+    name: "ML Model",
+    icon: BrainCircuit,
+    iconName: "BrainCircuit",
+    initialProperties: { name: "ML Model", type: "Recommendation Engine", framework: "TensorFlow", serving: "Seldon Core", input: "User data", output: "Product list" },
+    configurableProperties: [
+      nameProperty,
+      { id: 'type', label: 'Model Type', type: 'text' },
+      { id: 'framework', label: 'Framework', type: 'select', options: ["TensorFlow", "PyTorch", "scikit-learn", "Other"] },
+      { id: 'serving', label: 'Serving Engine', type: 'text' },
+      { id: 'input', label: 'Input Data', type: 'text' },
+      { id: 'output', label: 'Output Data', type: 'text' }
+    ]
+  },
 ];
 
 const networkingComponents: ComponentConfig[] = [
@@ -142,6 +172,19 @@ const networkingComponents: ComponentConfig[] = [
       { id: 'cidrBlock', label: 'CIDR Block', type: 'text' },
       { id: 'subnets', label: 'Subnet Configuration', type: 'textarea' },
       { id: 'region', label: 'Region', type: 'text' },
+    ]
+  },
+  {
+    name: "Service Mesh",
+    icon: GitMerge,
+    iconName: "GitMerge",
+    initialProperties: { name: "Service Mesh", type: "Istio", trafficManagement: "enabled", security: "mTLS", observability: "enabled" },
+    configurableProperties: [
+      nameProperty,
+      { id: 'type', label: 'Type', type: 'select', options: ["Istio", "Linkerd", "Consul Connect", "Custom"] },
+      { id: 'trafficManagement', label: 'Traffic Management', type: 'boolean' },
+      { id: 'security', label: 'Security (mTLS)', type: 'boolean' },
+      { id: 'observability', label: 'Observability', type: 'boolean' }
     ]
   },
 ];
@@ -201,6 +244,20 @@ const databaseComponents: ComponentConfig[] = [
       { id: 'clusterSize', label: 'Cluster Size/Concurrency', type: 'text' },
       { id: 'dataSources', label: 'Data Sources', type: 'textarea' },
       { id: 'queryLanguage', label: 'Query Language', type: 'text' },
+    ]
+  },
+  {
+    name: "Search Engine",
+    icon: Search,
+    iconName: "Search",
+    initialProperties: { name: "Search Engine", type: "Elasticsearch", nodes: 3, indexing: "real-time", queryLanguage: "DSL", useCase: "Full-text search" },
+    configurableProperties: [
+      nameProperty,
+      { id: 'type', label: 'Engine Type', type: 'select', options: ["Elasticsearch", "OpenSearch", "Algolia", "Meilisearch", "Solr"] },
+      { id: 'nodes', label: 'Nodes', type: 'number' },
+      { id: 'indexing', label: 'Indexing Strategy', type: 'text' },
+      { id: 'queryLanguage', label: 'Query Language', type: 'text' },
+      { id: 'useCase', label: 'Primary Use Case', type: 'text' }
     ]
   },
 ];
@@ -292,6 +349,19 @@ const securityComponents: ComponentConfig[] = [
       { id: 'mfa', label: 'MFA Support', type: 'text' },
     ]
   },
+  {
+    name: "Key/Secret Vault",
+    icon: KeyRound,
+    iconName: "KeyRound",
+    initialProperties: { name: "Key/Secret Vault", type: "HashiCorp Vault", storageBackend: "Consul", accessControl: "Policy-based", auditLogging: "enabled" },
+    configurableProperties: [
+      nameProperty,
+      { id: 'type', label: 'Vault Type', type: 'select', options: ["HashiCorp Vault", "AWS Secrets Manager", "Azure Key Vault", "GCP Secret Manager"] },
+      { id: 'storageBackend', label: 'Storage Backend', type: 'text' },
+      { id: 'accessControl', label: 'Access Control', type: 'text' },
+      { id: 'auditLogging', label: 'Audit Logging', type: 'boolean' }
+    ]
+  },
 ];
 
 const monitoringComponents: ComponentConfig[] = [
@@ -320,6 +390,19 @@ const monitoringComponents: ComponentConfig[] = [
       { id: 'storage', label: 'Storage Backend', type: 'text' },
       { id: 'visualization', label: 'Visualization Tool', type: 'text' },
       { id: 'retention', label: 'Log Retention Period', type: 'text' },
+    ]
+  },
+  {
+    name: "Analytics Service",
+    icon: LineChart,
+    iconName: "LineChart",
+    initialProperties: { name: "Analytics Service", type: "Mixpanel", dataTracked: "User events, funnels", integration: "SDK/API", processing: "Real-time" },
+    configurableProperties: [
+      nameProperty,
+      { id: 'type', label: 'Service Type', type: 'select', options: ["Mixpanel", "Amplitude", "Google Analytics", "Custom (e.g., Snowplow)"] },
+      { id: 'dataTracked', label: 'Data Tracked', type: 'textarea' },
+      { id: 'integration', label: 'Integration Method', type: 'text' },
+      { id: 'processing', label: 'Processing Type', type: 'text' }
     ]
   },
 ];
