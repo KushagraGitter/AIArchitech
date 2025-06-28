@@ -3,8 +3,9 @@
 
 import type { NodeProps } from 'reactflow';
 import { Handle, Position } from 'reactflow';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import * as LucideIcons from 'lucide-react';
+import type { NodeData } from './design-canvas';
 
 // Helper to get Lucide icon component by name (case-insensitive for flexibility)
 const getIconComponent = (iconName: string): React.ElementType => {
@@ -14,48 +15,78 @@ const getIconComponent = (iconName: string): React.ElementType => {
   const foundIconKey = Object.keys(icons).find(
     key => key.toLowerCase() === normalizedIconName.toLowerCase() || key.toLowerCase() === iconName.toLowerCase()
   );
-  return foundIconKey ? icons[foundIconKey] : LucideIcons.HelpCircle; // Default if not found, HelpCircle for unknown
+  return foundIconKey ? icons[foundIconKey] : LucideIcons.HelpCircle; // Default if not found
 };
 
-export function CustomNode({ data, selected }: NodeProps<{ label: string; iconName: string; properties?: Record<string, any> }>) {
+// Helper to get a descriptive string from node properties
+const getNodeDescription = (data: NodeData): string => {
+    if (!data.properties) return '';
+
+    const props = data.properties;
+    switch (data.label) {
+        case 'Web Server':
+            return props.framework || 'Web framework';
+        case 'API Gateway':
+            return props.protocol || 'Handles API traffic';
+        case 'Database':
+            return props.type || 'Stores data';
+        case 'Load Balancer':
+            return props.algorithm || 'Distributes load';
+        case 'Cache':
+            return props.type || 'In-memory store';
+        case 'Message Queue':
+            return props.type || 'Async messaging';
+        case 'Serverless Function':
+            return props.runtime || 'On-demand compute';
+        default:
+            return props.type || props.language || props.serviceName || '';
+    }
+};
+
+export function CustomNode({ data, selected }: NodeProps<NodeData>) {
   const IconComponent = getIconComponent(data.iconName);
   const isInfoNote = data.label === "Info Note";
 
   const nodeLabel = isInfoNote
     ? data.properties?.title || 'Info Note'
     : data.properties?.name || data.label;
+    
+  const nodeDescription = isInfoNote ? '' : getNodeDescription(data);
 
   const noteBackgroundColor = 'bg-yellow-100 dark:bg-yellow-800/30';
   const noteBorderColor = 'border-yellow-400 dark:border-yellow-600';
-  const componentBorderColor = selected ? 'border-primary' : 'border-border';
-
+  const componentBorderColor = selected ? 'border-primary' : 'border-card';
+  
   return (
     <Card
-      className={`w-56 shadow-lg border-2 rounded-lg transition-all duration-150 ease-in-out overflow-hidden 
+      className={`w-64 border-2 rounded-lg transition-all duration-150 ease-in-out
                   ${isInfoNote ? `${noteBackgroundColor} ${noteBorderColor}` : 'bg-card'} 
-                  ${selected && !isInfoNote ? 'scale-105 shadow-2xl' : ''}
-                  ${selected && isInfoNote ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}
+                  ${selected ? 'shadow-2xl' : 'shadow-md'}
+                  ${selected && !isInfoNote ? 'border-primary' : ''}
                   ${!isInfoNote ? componentBorderColor : ''}
                   ${!isInfoNote && !selected ? 'hover:shadow-xl' : ''}
                   `}
     >
       <CardHeader 
-        className={`p-3 flex flex-row items-center space-x-2 
-                    ${isInfoNote ? 'pb-2' : ''}
-                    ${selected && !isInfoNote ? 'bg-card' : isInfoNote ? '' : 'bg-card'}`} // Ensure header bg matches card for components
+        className="p-3 flex flex-row items-center gap-3 space-y-0"
       >
         <IconComponent 
             className={`h-6 w-6 shrink-0 
-            ${selected && !isInfoNote ? 'text-primary' : isInfoNote ? 'text-yellow-700 dark:text-yellow-400' : 'text-muted-foreground'}`} 
+            ${selected && !isInfoNote ? 'text-primary' : isInfoNote ? 'text-yellow-700 dark:text-yellow-400' : 'text-primary'}`} 
         />
         <CardTitle 
-            className={`text-sm font-semibold truncate 
-            ${selected && !isInfoNote ? 'text-primary' : isInfoNote ? 'text-yellow-800 dark:text-yellow-200' : 'text-card-foreground'}`}
+            className="text-base font-semibold truncate"
         >
             {nodeLabel}
         </CardTitle>
       </CardHeader>
       
+      {!isInfoNote && nodeDescription && (
+        <CardContent className="p-3 pt-0 pb-2">
+            <p className="text-sm text-muted-foreground truncate">{nodeDescription}</p>
+        </CardContent>
+      )}
+
       {isInfoNote && data.properties?.content && (
         <CardContent className="p-3 pt-0 text-xs text-yellow-900 dark:text-yellow-100 max-h-48 overflow-y-auto">
           <p className="whitespace-pre-wrap">
@@ -66,6 +97,12 @@ export function CustomNode({ data, selected }: NodeProps<{ label: string; iconNa
       
       {!isInfoNote && (
         <>
+        <CardFooter className="p-3 pt-0">
+             <div className="flex items-center gap-1.5 text-xs text-green-600">
+                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                Ready
+            </div>
+        </CardFooter>
           <Handle 
             type="target" 
             position={Position.Top} 
@@ -91,4 +128,3 @@ export function CustomNode({ data, selected }: NodeProps<{ label: string; iconNa
     </Card>
   );
 }
-    

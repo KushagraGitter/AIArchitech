@@ -20,6 +20,7 @@ const generalComponents: ComponentConfig[] = [
     name: "Info Note",
     icon: StickyNote,
     iconName: "StickyNote",
+    description: "Add notes and requirements.",
     initialProperties: { title: "Note", content: "Enter your text here..." },
     configurableProperties: [
       { id: 'title', label: 'Title', type: 'text' },
@@ -30,6 +31,7 @@ const generalComponents: ComponentConfig[] = [
     name: "Generic Component",
     icon: Shapes,
     iconName: "Shapes",
+    description: "A placeholder for any component.",
     initialProperties: { name: "Component" },
     configurableProperties: [ { id: 'name', label: 'Name', type: 'text' } ]
   },
@@ -40,6 +42,7 @@ const computeComponents: ComponentConfig[] = [
     name: "Web Server",
     icon: Server,
     iconName: "Server",
+    description: "Serves static and dynamic web content.",
     initialProperties: { name: "Web Server", instanceType: "t3.medium", scaling: "auto", framework: "Nginx", port: 80 },
     configurableProperties: [
       nameProperty,
@@ -53,6 +56,7 @@ const computeComponents: ComponentConfig[] = [
     name: "App Server",
     icon: ServerCog,
     iconName: "ServerCog",
+    description: "Runs application business logic.",
     initialProperties: { name: "App Server", language: "Node.js", framework: "Express", instanceType: "m5.large", scaling: "auto-scaling group", minInstances: 2, maxInstances: 10 },
     configurableProperties: [
       nameProperty,
@@ -68,6 +72,7 @@ const computeComponents: ComponentConfig[] = [
     name: "Serverless Function",
     icon: CloudCog,
     iconName: "CloudCog",
+    description: "Execute code on-demand.",
     initialProperties: { name: "Serverless Function", runtime: "Node.js 18.x", memory: "256MB", timeout: "30s", trigger: "HTTP API" },
     configurableProperties: [
       nameProperty,
@@ -81,6 +86,7 @@ const computeComponents: ComponentConfig[] = [
     name: "Container",
     icon: Container,
     iconName: "Container",
+    description: "Run applications in isolated environments.",
     initialProperties: { name: "Container", image: "nginx:latest", orchestrator: "Kubernetes", replicas: 3, cpuRequest: "0.5", memoryRequest: "512Mi" },
     configurableProperties: [
       nameProperty,
@@ -95,6 +101,7 @@ const computeComponents: ComponentConfig[] = [
     name: "Batch Job",
     icon: Clock,
     iconName: "Clock",
+    description: "Process large volumes of data offline.",
     initialProperties: { name: "Batch Job", framework: "Spring Batch", trigger: "Cron (daily)", compute: "ECS Task", inputSource: "S3 Bucket", outputSink: "Data Warehouse" },
     configurableProperties: [
       nameProperty,
@@ -109,6 +116,7 @@ const computeComponents: ComponentConfig[] = [
     name: "ML Model",
     icon: BrainCircuit,
     iconName: "BrainCircuit",
+    description: "Serve machine learning models.",
     initialProperties: { name: "ML Model", type: "Recommendation Engine", framework: "TensorFlow", serving: "Seldon Core", input: "User data", output: "Product list" },
     configurableProperties: [
       nameProperty,
@@ -126,6 +134,7 @@ const networkingComponents: ComponentConfig[] = [
     name: "Load Balancer",
     icon: Shuffle,
     iconName: "Shuffle",
+    description: "Distribute incoming traffic.",
     initialProperties: { name: "Load Balancer", type: "Application LB", algorithm: "Round Robin", instanceCount: 2, healthCheckPath: "/health" },
     configurableProperties: [
       nameProperty,
@@ -139,6 +148,7 @@ const networkingComponents: ComponentConfig[] = [
     name: "API Gateway",
     icon: Waypoints,
     iconName: "Waypoints",
+    description: "Single entry point for APIs.",
     initialProperties: { name: "API Gateway", protocol: "HTTPS/REST", authType: "API Key", rateLimit: "1000/s", corsEnabled: true },
     configurableProperties: [
       nameProperty,
@@ -152,6 +162,7 @@ const networkingComponents: ComponentConfig[] = [
     name: "CDN",
     icon: Cloud,
     iconName: "Cloud",
+    description: "Cache content closer to users.",
     initialProperties: { name: "CDN", provider: "Cloudflare", edgeLocations: "global", cachingPolicy: "Standard", WAFEnabled: true },
     configurableProperties: [
       nameProperty,
@@ -165,6 +176,7 @@ const networkingComponents: ComponentConfig[] = [
     name: "Virtual Network",
     icon: NetworkIcon,
     iconName: "Network",
+    description: "Isolated network for resources.",
     initialProperties: { name: "Virtual Network", type: "VPC/VNet", cidrBlock: "10.0.0.0/16", subnets: "Public, Private", region: "us-east-1" },
     configurableProperties: [
       nameProperty,
@@ -178,6 +190,7 @@ const networkingComponents: ComponentConfig[] = [
     name: "Service Mesh",
     icon: GitMerge,
     iconName: "GitMerge",
+    description: "Manage service-to-service communication.",
     initialProperties: { name: "Service Mesh", type: "Istio", trafficManagement: "enabled", security: "mTLS", observability: "enabled" },
     configurableProperties: [
       nameProperty,
@@ -194,6 +207,7 @@ const databaseComponents: ComponentConfig[] = [
     name: "Database",
     icon: Database,
     iconName: "Database",
+    description: "Persistent data storage.",
     initialProperties: {
       name: "Database",
       type: "PostgreSQL",
@@ -223,6 +237,7 @@ const databaseComponents: ComponentConfig[] = [
     name: "DB Router/Coordinator",
     icon: ServerCog,
     iconName: "ServerCog",
+    description: "Routes queries to database shards.",
     initialProperties: { name: "DB Router/Coordinator", type: "ProxySQL/Vitess", strategy: "Sharding Coordination", connectionPooling: "enabled", queryCaching: "disabled" },
     configurableProperties: [
       nameProperty,
@@ -236,6 +251,7 @@ const databaseComponents: ComponentConfig[] = [
     name: "Data Warehouse",
     icon: Warehouse,
     iconName: "Warehouse",
+    description: "Storage for business intelligence.",
     initialProperties: { name: "Data Warehouse", type: "Snowflake", nodeType: "Medium", clusterSize: "4 nodes", dataSources: "S3, Kafka", queryLanguage: "SQL" },
     configurableProperties: [
       nameProperty,
@@ -250,6 +266,7 @@ const databaseComponents: ComponentConfig[] = [
     name: "Search Engine",
     icon: Search,
     iconName: "Search",
+    description: "Powers full-text search.",
     initialProperties: { name: "Search Engine", type: "Elasticsearch", nodes: 3, indexing: "real-time", queryLanguage: "DSL", useCase: "Full-text search" },
     configurableProperties: [
       nameProperty,
@@ -267,6 +284,7 @@ const storageComponents: ComponentConfig[] = [
     name: "Storage (S3/Blob)",
     icon: Box,
     iconName: "Box",
+    description: "Scalable object storage.",
     initialProperties: { name: "Storage (S3/Blob)", bucketType: "Standard", region: "us-east-1", versioning: "enabled", lifecyclePolicy: "Archive after 90d" },
     configurableProperties: [
       nameProperty,
@@ -280,6 +298,7 @@ const storageComponents: ComponentConfig[] = [
     name: "Cache",
     icon: Zap,
     iconName: "Zap",
+    description: "High-speed in-memory data store.",
     initialProperties: { name: "Cache", type: "Redis", evictionPolicy: "LRU", pattern: "Cache-Aside", size: "cache.m5.large", persistence: "RDB snapshot" },
     configurableProperties: [
       nameProperty,
@@ -297,6 +316,7 @@ const messagingComponents: ComponentConfig[] = [
     name: "Message Queue",
     icon: GitFork,
     iconName: "GitFork",
+    description: "Decouple services with async messages.",
     initialProperties: { name: "Message Queue", type: "RabbitMQ", persistence: "durable", deliveryGuarantee: "at-least-once", consumerGroups: 1, deadLetterQueue: "enabled" },
     configurableProperties: [
       nameProperty,
@@ -311,6 +331,7 @@ const messagingComponents: ComponentConfig[] = [
     name: "Event Bus",
     icon: Spline,
     iconName: "Spline",
+    description: "Receive and route events between services.",
     initialProperties: { name: "Event Bus", type: "AWS EventBridge", schemaRegistry: "enabled", targets: "Lambda, SQS", filtering: "Attribute-based" },
     configurableProperties: [
       nameProperty,
@@ -327,6 +348,7 @@ const securityComponents: ComponentConfig[] = [
     name: "Firewall",
     icon: ShieldCheck,
     iconName: "ShieldCheck",
+    description: "Filter and monitor network traffic.",
     initialProperties: { name: "Firewall", type: "WAF", ruleset: "OWASP Top 10", deployment: "Edge", logging: "enabled" },
     configurableProperties: [
       nameProperty,
@@ -340,6 +362,7 @@ const securityComponents: ComponentConfig[] = [
     name: "Identity Provider",
     icon: Fingerprint,
     iconName: "Fingerprint",
+    description: "Manage user authentication and identity.",
     initialProperties: { name: "Identity Provider", type: "Keycloak", protocols: "OAuth2, OpenID Connect", userStore: "Internal DB", mfa: "TOTP enabled" },
     configurableProperties: [
       nameProperty,
@@ -353,6 +376,7 @@ const securityComponents: ComponentConfig[] = [
     name: "Key/Secret Vault",
     icon: KeyRound,
     iconName: "KeyRound",
+    description: "Securely store secrets and keys.",
     initialProperties: { name: "Key/Secret Vault", type: "HashiCorp Vault", storageBackend: "Consul", accessControl: "Policy-based", auditLogging: "enabled" },
     configurableProperties: [
       nameProperty,
@@ -369,6 +393,7 @@ const monitoringComponents: ComponentConfig[] = [
     name: "Monitoring",
     icon: BarChartBig,
     iconName: "BarChartBig",
+    description: "Collect and analyze system metrics.",
     initialProperties: { name: "Monitoring", tool: "Prometheus/Grafana", metrics: "Latency, Error Rate, Traffic, Saturation", alerting: "PagerDuty", dashboarding: "Grafana" },
     configurableProperties: [
       nameProperty,
@@ -382,6 +407,7 @@ const monitoringComponents: ComponentConfig[] = [
     name: "Logging System",
     icon: ScrollText,
     iconName: "ScrollText",
+    description: "Aggregate and manage system logs.",
     initialProperties: { name: "Logging System", type: "ELK Stack", ingestion: "Filebeat/Logstash", storage: "Elasticsearch", visualization: "Kibana", retention: "30 days" },
     configurableProperties: [
       nameProperty,
@@ -396,6 +422,7 @@ const monitoringComponents: ComponentConfig[] = [
     name: "Analytics Service",
     icon: LineChart,
     iconName: "LineChart",
+    description: "Track and analyze user behavior.",
     initialProperties: { name: "Analytics Service", type: "Mixpanel", dataTracked: "User events, funnels", integration: "SDK/API", processing: "Real-time" },
     configurableProperties: [
       nameProperty,
@@ -412,6 +439,7 @@ const serviceComponents: ComponentConfig[] = [
     name: "User Service",
     icon: Users,
     iconName: "Users",
+    description: "Handles user accounts and profiles.",
     initialProperties: { name: "User Service", language: "Go", responsibilities: "User accounts, auth, profiles", dbUsed: "User DB (Postgres)", apiType: "REST/gRPC" },
     configurableProperties: [
       nameProperty,
@@ -425,6 +453,7 @@ const serviceComponents: ComponentConfig[] = [
     name: "Chat Service",
     icon: MessageSquare,
     iconName: "MessageSquare",
+    description: "Powers real-time chat features.",
     initialProperties: { name: "Chat Service", language: "Java/Kotlin", features: "Message delivery, history, presence, typing indicators", transport: "WebSockets", scalability: "Horizontally scalable" },
     configurableProperties: [
       nameProperty,
@@ -438,6 +467,7 @@ const serviceComponents: ComponentConfig[] = [
     name: "URL Shortener Service",
     icon: Link2,
     iconName: "Link2",
+    description: "Creates short links from long URLs.",
     initialProperties: { name: "URL Shortener Service", language: "Python", db: "Key-Value Store (e.g. Redis)", algorithm: "Base62 Encoding + Collision Resolution", readHeavy: true },
     configurableProperties: [
       nameProperty,
@@ -454,6 +484,7 @@ const clientExternalComponents: ComponentConfig[] = [
       name: "Client Device",
       icon: Smartphone,
       iconName: "Smartphone",
+      description: "User's device (browser/mobile).",
       initialProperties: { name: "Client Device", type: "Mobile/Web Browser", platform: "iOS/Android/Web", connectionType: "WiFi/Cellular" },
       configurableProperties: [
         nameProperty,
@@ -466,6 +497,7 @@ const clientExternalComponents: ComponentConfig[] = [
       name: "External API",
       icon: Globe,
       iconName: "Globe",
+      description: "Third-party service integration.",
       initialProperties: { name: "External API", serviceName: "Payment Gateway", purpose: "Processes payments", integration: "Webhook/SDK", reliability: "High (SLA based)" },
       configurableProperties: [
         nameProperty,
@@ -482,6 +514,7 @@ const devOpsComponents: ComponentConfig[] = [
     name: "CI/CD Pipeline",
     icon: Workflow,
     iconName: "Workflow",
+    description: "Automates software delivery.",
     initialProperties: { name: "CI/CD Pipeline", tool: "Jenkins", stages: "Build, Test, Deploy", trigger: "Git push", repository: "GitHub" },
     configurableProperties: [
       nameProperty,
