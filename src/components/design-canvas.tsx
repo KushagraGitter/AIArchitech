@@ -328,7 +328,10 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           <Button
             onClick={onEvaluateClick}
             disabled={isLoadingEvaluation}
-            className="shadow-lg"
+            className={cn(
+              "shadow-lg",
+              !isLoadingEvaluation && !aiFeedback && "animate-ai-border-pulse"
+            )}
           >
             {isLoadingEvaluation ? (
               <>
@@ -342,7 +345,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
               </>
             ) : (
               <>
-                <Sparkles className="mr-2 h-4 w-4" />
+                <Sparkles className="mr-2 h-4 w-4 animate-ai-sparkle-pulse" />
                 Evaluate Design
               </>
             )}
