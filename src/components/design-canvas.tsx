@@ -35,6 +35,8 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { Loader2, Sparkles } from 'lucide-react';
+import type { EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 
 
 export interface NodeData {
@@ -55,6 +57,9 @@ interface DesignCanvasProps {
   onNodeSelect: (node: Node<NodeData> | null) => void;
   onStructuralChange?: () => void;
   className?: string;
+  onEvaluateClick: () => void;
+  isLoadingEvaluation: boolean;
+  aiFeedback: EvaluateSystemDesignOutput | null;
 }
 
 
@@ -63,7 +68,7 @@ const getNextNodeId = () => `dndnode_${idCounter++}`;
 const getNextEdgeId = () => `edge_${idCounter++}`;
 
 
-export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>(({ onNodeSelect, onStructuralChange, className }, ref) => {
+export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>(({ onNodeSelect, onStructuralChange, className, onEvaluateClick, isLoadingEvaluation, aiFeedback }, ref) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChangeInternal] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChangeInternal] = useEdgesState([]);
@@ -279,7 +284,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
   }));
 
   return (
-      <div className={cn("w-full flex flex-col", className)} ref={reactFlowWrapper}>
+      <div className={cn("w-full h-full flex flex-col relative", className)} ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -318,6 +323,31 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
             className="!bg-card border border-border rounded-md shadow-lg"
           />
         </ReactFlow>
+
+        <div className="absolute top-4 right-4 z-10">
+          <Button
+            onClick={onEvaluateClick}
+            disabled={isLoadingEvaluation}
+            className="shadow-lg"
+          >
+            {isLoadingEvaluation ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Evaluating...
+              </>
+            ) : aiFeedback ? (
+              <>
+                <Sparkles className="mr-2 h-4 w-4" />
+                See Evaluation
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Evaluate Design
+              </>
+            )}
+          </Button>
+        </div>
 
         {isEdgeDialogVisible && (
           <Dialog open={isEdgeDialogVisible} onOpenChange={(isOpen) => {

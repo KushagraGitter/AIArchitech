@@ -38,7 +38,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MessageSquarePlus, Copy, AlertTriangle } from 'lucide-react';
+import { Loader2, MessageSquarePlus, Copy, AlertTriangle, Sparkles } from 'lucide-react';
 
 import { DesignCanvas, type DesignCanvasHandles, type NodeData } from '@/components/design-canvas';
 import { PropertiesPanel } from '@/components/properties-panel';
@@ -62,6 +62,7 @@ import { designComponents, groupedDesignComponents } from './designComponents';
 import { initialTemplates } from './initialTemplates';
 import { generateDiagram } from '@/ai/flows/generate-diagram-flow';
 import { TemplateBrowserDialog } from './template-browser-dialog';
+import { EvaluationResultDialog } from './evaluation-result-dialog';
 
 const formSchema = z.object({
   // Minimal schema, actual fields are dynamic
@@ -152,8 +153,8 @@ function AppContent() {
   const [selectedTerraformProvider, setSelectedTerraformProvider] = useState<'AWS' | 'GCP' | 'Azure' | ''>('');
   const [isTerraformResultModalOpen, setIsTerraformResultModalOpen] = useState(false);
   const [terraformExportResult, setTerraformExportResult] = useState<GenerateTerraformOutput | null>(null);
-  const [isGeneratingTerraform, setIsGeneratingTerraform] = useState(false);
   const [isTemplateBrowserOpen, setIsTemplateBrowserOpen] = useState(false);
+  const [isEvaluationDialogOpen, setIsEvaluationDialogOpen] = useState(false);
 
 
   const { currentUser, logout, loading: authLoading } = useAuth();
@@ -621,6 +622,7 @@ function AppContent() {
 
       const feedback = await evaluateSystemDesign(evaluationInput);
       setAiFeedback(feedback);
+      setIsEvaluationDialogOpen(true);
       toast({
         title: "Evaluation Complete",
         description: "AI feedback has been generated successfully.",
@@ -638,6 +640,15 @@ function AppContent() {
       setIsLoadingEvaluation(false);
     }
   };
+
+  const handleEvaluateButtonClick = () => {
+    if (aiFeedback && !isLoadingEvaluation) {
+      setIsEvaluationDialogOpen(true);
+    } else if (!isLoadingEvaluation) {
+      onSubmitEvaluation({}); // Pass empty data as form is gone
+    }
+  };
+
 
   const handleGenerateDesign = async () => {
     setIsGeneratingDesign(true);
@@ -992,9 +1003,6 @@ function AppContent() {
       
       <div className="flex flex-1 min-h-0">
         <AppSidebar
-          form={form}
-          onSubmit={onSubmitEvaluation}
-          isLoadingEvaluation={isLoadingEvaluation}
           aiFeedback={aiFeedback}
           groupedDesignComponents={groupedDesignComponents}
           onDragStart={onDragStart}
@@ -1012,6 +1020,9 @@ function AppContent() {
                     console.log("ArchitechApp: onStructuralChange called from DesignCanvas");
                     handleSetDiagramChanged(true);
                   }}
+                  onEvaluateClick={handleEvaluateButtonClick}
+                  isLoadingEvaluation={isLoadingEvaluation}
+                  aiFeedback={aiFeedback}
                 />
               </main>
               {selectedNode && selectedComponentConfig && (
@@ -1100,6 +1111,12 @@ function AppContent() {
             setIsTemplateBrowserOpen(false);
         }}
        />
+
+       <EvaluationResultDialog 
+        isOpen={isEvaluationDialogOpen}
+        onClose={() => setIsEvaluationDialogOpen(false)}
+        feedback={aiFeedback}
+      />
 
       {isNewDesignDialogOpen && (
         <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
