@@ -2,9 +2,24 @@ import type { Node, Edge } from 'reactflow';
 import {type NodeData } from '@/components/design-canvas';
 import { designComponents } from './designComponents';
 
-export const  initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }[] = [
+export interface Template {
+  name: string;
+  description: string;
+  level: 'Beginner' | 'Intermediate' | 'Advanced';
+  tags: string[];
+  iconName: string;
+  nodes: Node<NodeData>[];
+  edges: Edge[];
+}
+
+
+export const initialTemplates: Template[] = [
     {
       name: "Basic Web Service",
+      description: "A fundamental setup showing a load balancer distributing traffic to a web server connected to a database.",
+      level: "Beginner",
+      tags: ["Web", "Core", "Database"],
+      iconName: "Server",
       nodes: [
         { id: 'bws_req_1', type: 'custom', position: { x: 50, y: -50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Feature Requirements', content: 'Design a basic web service that serves user profiles.'} } },
         { id: 'bws_lb_1', type: 'custom', position: { x: 250, y: 50 }, data: { label: 'Load Balancer', iconName: 'Shuffle', properties: designComponents.find(c => c.name === "Load Balancer")?.initialProperties || {} } },
@@ -18,6 +33,10 @@ export const  initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: 
     },
     {
       name: "Scalable API",
+      description: "A read-heavy API architecture using a primary database with a read replica to handle scalable workloads.",
+      level: "Intermediate",
+      tags: ["API", "Scalability", "Database"],
+      iconName: "Waypoints",
       nodes: [
           { id: 'sa_req_1', type: 'custom', position: { x: -100, y: -50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Feature Requirements', content: 'Design a scalable API for a social media application. Focus on read-heavy workloads for user timelines.'} } },
           { id: 'sa_bote_1', type: 'custom', position: { x: 300, y: -50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'BOTE Calculations', content: '1M DAU\n100 reads/user/day\n10 writes/user/day\nRead QPS: ~1k (avg), ~10k (peak)\nWrite QPS: ~100 (avg), ~1k (peak)'} } },
@@ -39,6 +58,10 @@ export const  initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: 
     },
     {
       name: "Chat Application",
+      description: "A complete real-time chat system using WebSockets, microservices, and a presence cache for scalability.",
+      level: "Advanced",
+      tags: ["Real-time", "Microservices", "WebSockets"],
+      iconName: "MessageSquare",
       nodes: [
         { id: 'chat_req_1', type: 'custom', position: { x: -150, y: 0 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Feature Requirements', content: 'Design a chat application supporting 1-1 and group chats, message history, presence, typing indicators. Scalability: 1M concurrent users.'} } },
         { id: 'chat_client_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'Client Device', iconName: 'Smartphone', properties: designComponents.find(c => c.name === "Client Device")?.initialProperties || {} } },
@@ -68,6 +91,10 @@ export const  initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: 
     },
     {
       name: "TinyURL Service",
+      description: "A classic TinyURL design focused on high-availability and low-latency reads using a Key-Value store and cache.",
+      level: "Intermediate",
+      tags: ["Core", "Caching", "Key-Value"],
+      iconName: "Link2",
       nodes: [
         { id: 'tiny_req_1', type: 'custom', position: { x: -150, y: 50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Feature Requirements', content: 'Design a TinyURL-like service. Requirements: Shorten URL, Redirect to original URL, High availability, Low latency reads. Custom short links (optional). Analytics (optional).'} } },
         { id: 'tiny_client_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'Client Device', iconName: 'Smartphone', properties: designComponents.find(c => c.name === "Client Device")?.initialProperties || {} } },
@@ -86,6 +113,10 @@ export const  initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: 
     },
     {
       name: "Sharded Database System",
+      description: "Demonstrates database sharding for extreme scalability using a router/coordinator to direct traffic to appropriate shards.",
+      level: "Advanced",
+      tags: ["Database", "Sharding", "Scalability"],
+      iconName: "DatabaseZap",
       nodes: [
         { id: 'shard_req_1', type: 'custom', position: { x: -150, y: 100 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Scenario', content: 'Design the database sharding for a system with a very large number of users (e.g., 1 billion users), where user data needs to be partitioned.'} } },
         { id: 'shard_app_1', type: 'custom', position: { x: 50, y: 200 }, data: { label: 'App Server', iconName: 'ServerCog', properties: designComponents.find(c => c.name === "App Server")?.initialProperties || {} } },
@@ -103,6 +134,10 @@ export const  initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: 
     },
     {
       name: "Message Queue System",
+      description: "A producer/consumer pattern for asynchronous processing using a message queue to decouple services.",
+      level: "Intermediate",
+      tags: ["Messaging", "Decoupling", "Async"],
+      iconName: "GitFork",
       nodes: [
         { id: 'mq_req_1', type: 'custom', position: { x: -150, y: 50 }, data: { label: 'Info Note', iconName: 'StickyNote', properties: { title: 'Scenario', content: 'Design a system for asynchronous order processing. When an order is placed, events need to be reliably sent to notification and inventory services.'} } },
         { id: 'mq_producer_1', type: 'custom', position: { x: 50, y: 150 }, data: { label: 'Producer Service', iconName: 'Server', properties: {...(designComponents.find(c => c.name === "App Server")?.initialProperties || {}), custom: {task: "Order Processing", event_type: "OrderCreatedEvent"}} } },

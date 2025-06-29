@@ -60,6 +60,7 @@ import { TopNavigationBar } from './top-navigation-bar';
 import { designComponents, groupedDesignComponents } from './designComponents';
 import { initialTemplates } from './initialTemplates';
 import { generateDiagram } from '@/ai/flows/generate-diagram-flow';
+import { TemplateBrowserDialog } from './template-browser-dialog';
 
 const formSchema = z.object({
   // Minimal schema, actual fields are dynamic
@@ -151,6 +152,7 @@ function AppContent() {
   const [isTerraformResultModalOpen, setIsTerraformResultModalOpen] = useState(false);
   const [terraformExportResult, setTerraformExportResult] = useState<GenerateTerraformOutput | null>(null);
   const [isGeneratingTerraform, setIsGeneratingTerraform] = useState(false);
+  const [isTemplateBrowserOpen, setIsTemplateBrowserOpen] = useState(false);
 
 
   const { currentUser, logout, loading: authLoading } = useAuth();
@@ -965,9 +967,7 @@ function AppContent() {
         isLoadingEvaluation={isLoadingEvaluation}
         aiFeedback={aiFeedback}
         groupedDesignComponents={groupedDesignComponents}
-        initialTemplates={initialTemplates}
         onDragStart={onDragStart}
-        onLoadTemplate={loadTemplate}
       />
       
       <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col">
@@ -986,6 +986,7 @@ function AppContent() {
           onImportDesignClick={() => importFileRef.current?.click()}
           onExportToTerraformClick={handleExportToTerraformClick}
           onNewDesignClick={handleNewDesignButtonClick} 
+          onBrowseTemplatesClick={() => setIsTemplateBrowserOpen(true)}
           onLogout={handleLogout}
           themes={themeOptions as ThemeOption[]} 
           setTheme={setTheme}
@@ -1086,6 +1087,16 @@ function AppContent() {
           handleOpenNewDesignDialog(true);
         }}
       />
+      
+      <TemplateBrowserDialog
+        isOpen={isTemplateBrowserOpen}
+        onClose={() => setIsTemplateBrowserOpen(false)}
+        templates={initialTemplates}
+        onLoadTemplate={(nodes, edges, name) => {
+            loadTemplate(nodes, edges, name);
+            setIsTemplateBrowserOpen(false);
+        }}
+       />
 
       {isNewDesignDialogOpen && (
         <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {

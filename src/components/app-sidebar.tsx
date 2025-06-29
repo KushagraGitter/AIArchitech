@@ -35,9 +35,7 @@ interface AppSidebarProps {
   isLoadingEvaluation: boolean;
   aiFeedback: EvaluateSystemDesignOutput | null;
   groupedDesignComponents: ComponentGroup[]; 
-  initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }[];
   onDragStart: (event: React.DragEvent, component: ComponentConfig, color: string, borderColor: string) => void;
-  onLoadTemplate: (nodes: Node<NodeData>[], edges: Edge[], templateName: string) => void;
 }
 
 export function AppSidebar({
@@ -46,9 +44,7 @@ export function AppSidebar({
   isLoadingEvaluation,
   aiFeedback,
   groupedDesignComponents, 
-  initialTemplates,
   onDragStart,
-  onLoadTemplate,
 }: AppSidebarProps) {
   const [componentSearchTerm, setComponentSearchTerm] = useState('');
 
@@ -120,27 +116,6 @@ export function AppSidebar({
                         </div>
                     </div>
                 ))}
-                 <div>
-                    <SidebarGroupLabel className="px-0 text-xs uppercase tracking-wider group-data-[collapsible=icon]:hidden">
-                        Templates
-                    </SidebarGroupLabel>
-                    <div className="mt-2 space-y-1 group-data-[collapsible=icon]:mt-0">
-                        {initialTemplates.map((template) => (
-                           <div
-                            key={template.name}
-                            onClick={() => onLoadTemplate(template.nodes, template.edges, template.name)}
-                            className="flex items-center gap-3 p-2 rounded-lg border bg-card hover:bg-accent hover:text-accent-foreground cursor-pointer group-data-[collapsible=icon]:justify-center"
-                            title={template.name}
-                          >
-                            <Layers className="h-6 w-6 shrink-0 text-primary" />
-                            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                                <span className="font-semibold text-sm leading-tight text-card-foreground">{template.name}</span>
-                                <span className="text-xs text-muted-foreground">Load a pre-built design</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                  </div>
               </div>
 
               <Separator className="my-0" />
