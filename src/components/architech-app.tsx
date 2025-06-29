@@ -118,7 +118,8 @@ const createDefaultNotes = (): Node<NodeData>[] => {
 };
 
 
-function AppContent() {
+export function ArchitechApp() {
+  const [isClient, setIsClient] = useState(false);
   const [isLoadingEvaluation, setIsLoadingEvaluation] = useState(false);
   const [isGeneratingDesign, setIsGeneratingDesign] = useState(false);
   const [isSavingDesign, setIsSavingDesign] = useState(false);
@@ -166,6 +167,10 @@ function AppContent() {
     resolver: zodResolver(formSchema),
     defaultValues: {},
   });
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleSetDiagramChanged = useCallback((changed: boolean) => {
     console.log("Setting diagramChangedSinceLastSave to:", changed);
@@ -363,9 +368,11 @@ function AppContent() {
       }
     };
 
-    initializeAppForUser();
+    if (isClient) {
+      initializeAppForUser();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]); 
+  }, [currentUser, isClient]); 
 
 
   useEffect(() => {
@@ -958,6 +965,13 @@ function AppContent() {
     });
   };
 
+  if (!isClient) {
+    return (
+        <div className="flex h-screen items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    );
+  }
 
   if (authLoading && !currentUser) {
     return (
@@ -973,360 +987,315 @@ function AppContent() {
 
 
   return (
-    <>
-      <TopNavigationBar
-        currentDesignName={currentDesignName}
-        currentUser={currentUser}
-        isSavingDesign={isSavingDesign}
-        onMyDesignsClick={() => {
-          fetchUserDesigns();
-          setIsMyDesignsDialogOpen(true);
-          setIsWelcomeBackDialogOpen(false);
-        }}
-        onSaveDesign={handleSaveDesign}
-        canSave={!!currentDesignId && !(currentDesignName || "").endsWith("(Unsaved)")}
-        onExportDesign={handleExportDesign}
-        onImportDesignClick={() => importFileRef.current?.click()}
-        onExportToTerraformClick={handleExportToTerraformClick}
-        onNewDesignClick={handleNewDesignButtonClick}
-        onBrowseTemplatesClick={() => setIsTemplateBrowserOpen(true)}
-        onLogout={handleLogout}
-        themes={themeOptions}
-        setTheme={setTheme}
-      />
-      <input
-        type="file"
-        ref={importFileRef}
-        onChange={handleImportFileChange}
-        accept=".json"
-        className="hidden"
-      />
-      
-      <div className="flex flex-1 min-h-0">
-        <AppSidebar
-          aiFeedback={aiFeedback}
-          groupedDesignComponents={groupedDesignComponents}
-          onDragStart={onDragStart}
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex flex-col h-screen">
+        <TopNavigationBar
+            currentDesignName={currentDesignName}
+            currentUser={currentUser}
+            isSavingDesign={isSavingDesign}
+            onMyDesignsClick={() => {
+            fetchUserDesigns();
+            setIsMyDesignsDialogOpen(true);
+            setIsWelcomeBackDialogOpen(false);
+            }}
+            onSaveDesign={handleSaveDesign}
+            canSave={!!currentDesignId && !(currentDesignName || "").endsWith("(Unsaved)")}
+            onExportDesign={handleExportDesign}
+            onImportDesignClick={() => importFileRef.current?.click()}
+            onExportToTerraformClick={handleExportToTerraformClick}
+            onNewDesignClick={handleNewDesignButtonClick}
+            onBrowseTemplatesClick={() => setIsTemplateBrowserOpen(true)}
+            onLogout={handleLogout}
+            themes={themeOptions}
+            setTheme={setTheme}
+        />
+        <div className="flex flex-1 min-h-0">
+            <AppSidebar
+            aiFeedback={aiFeedback}
+            groupedDesignComponents={groupedDesignComponents}
+            onDragStart={onDragStart}
+            />
+
+            <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col">
+            <ReactFlowProvider>
+                <div className="flex flex-1 min-h-0">
+                <main className="flex-1 overflow-auto p-0 flex flex-col">
+                    <DesignCanvas
+                    ref={canvasRef}
+                    className="flex-1"
+                    onNodeSelect={handleNodeSelect}
+                    onStructuralChange={() => {
+                        console.log("ArchitechApp: onStructuralChange called from DesignCanvas");
+                        handleSetDiagramChanged(true);
+                    }}
+                    onEvaluateClick={handleEvaluateButtonClick}
+                    isLoadingEvaluation={isLoadingEvaluation}
+                    aiFeedback={aiFeedback}
+                    />
+                </main>
+                {selectedNode && selectedComponentConfig && (
+                    <aside className="w-80 border-l border-border bg-card hidden md:block">
+                    <ScrollArea className="h-full">
+                        <PropertiesPanel
+                        key={selectedNode.id}
+                        selectedNode={selectedNode}
+                        componentConfig={selectedComponentConfig}
+                        onUpdateNode={handleUpdateNodeProperties}
+                        onClose={() => setSelectedNode(null)}
+                        />
+                    </ScrollArea>
+                    </aside>
+                )}
+                {selectedNode && !selectedComponentConfig && (
+                    <aside className="w-80 border-l border-border bg-card hidden md:block p-4">
+                    <Card>
+                        <CardHeader>
+                        <CardTitle>Component Error</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                        <p className="text-sm text-destructive">Could not find configuration for the selected component: "{selectedNode.data.label}".</p>
+                        <p className="text-xs text-muted-foreground mt-2">This might happen if the component's label was manually changed or if its configuration is missing.</p>
+                        </CardContent>
+                    </Card>
+                    </aside>
+                )}
+                </div>
+            </ReactFlowProvider>
+            </SidebarInset>
+        </div>
+
+
+        <Button
+            variant="outline"
+            size="icon"
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary text-primary-foreground hover:bg-primary/90"
+            onClick={() => setIsChatOpen(prev => !prev)}
+            aria-label="Toggle Interview Bot"
+        >
+            <MessageSquarePlus className="h-7 w-7" />
+        </Button>
+
+        <ChatBotWindow
+            isOpen={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+            messages={chatMessages}
+            onSendMessage={handleSendMessageToBot}
+            isLoadingAiResponse={isBotLoadingResponse}
         />
 
-        <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col">
-          <ReactFlowProvider>
-            <div className="flex flex-1 min-h-0">
-              <main className="flex-1 overflow-auto p-0 flex flex-col">
-                <DesignCanvas
-                  ref={canvasRef}
-                  className="flex-1"
-                  onNodeSelect={handleNodeSelect}
-                  onStructuralChange={() => {
-                    console.log("ArchitechApp: onStructuralChange called from DesignCanvas");
-                    handleSetDiagramChanged(true);
-                  }}
-                  onEvaluateClick={handleEvaluateButtonClick}
-                  isLoadingEvaluation={isLoadingEvaluation}
-                  aiFeedback={aiFeedback}
-                />
-              </main>
-              {selectedNode && selectedComponentConfig && (
-                <aside className="w-80 border-l border-border bg-card hidden md:block">
-                  <ScrollArea className="h-full">
-                    <PropertiesPanel
-                      key={selectedNode.id}
-                      selectedNode={selectedNode}
-                      componentConfig={selectedComponentConfig}
-                      onUpdateNode={handleUpdateNodeProperties}
-                      onClose={() => setSelectedNode(null)}
-                    />
-                  </ScrollArea>
-                </aside>
-              )}
-              {selectedNode && !selectedComponentConfig && (
-                <aside className="w-80 border-l border-border bg-card hidden md:block p-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Component Error</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-destructive">Could not find configuration for the selected component: "{selectedNode.data.label}".</p>
-                      <p className="text-xs text-muted-foreground mt-2">This might happen if the component's label was manually changed or if its configuration is missing.</p>
-                    </CardContent>
-                  </Card>
-                </aside>
-              )}
-            </div>
-          </ReactFlowProvider>
-        </SidebarInset>
-      </div>
-
-
-      <Button
-        variant="outline"
-        size="icon"
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary text-primary-foreground hover:bg-primary/90"
-        onClick={() => setIsChatOpen(prev => !prev)}
-        aria-label="Toggle Interview Bot"
-      >
-        <MessageSquarePlus className="h-7 w-7" />
-      </Button>
-
-      <ChatBotWindow
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        messages={chatMessages}
-        onSendMessage={handleSendMessageToBot}
-        isLoadingAiResponse={isBotLoadingResponse}
-      />
-
-      <WelcomeBackDialog
-        isOpen={isWelcomeBackDialogOpen || isMyDesignsDialogOpen}
-        onClose={() => {
-            setIsWelcomeBackDialogOpen(false);
-            setIsMyDesignsDialogOpen(false);
-            if (!currentDesignId && canvasRef.current && !isMyDesignsDialogOpen) { 
-                 canvasRef.current.loadTemplate(createDefaultNotes(), []);
-                 setCanvasLoadedDesignId(null);
-                 setCurrentDesignId(null);
-                 setCurrentDesignName(null);
-                 handleSetDiagramChanged(false);
-            }
-        }}
-        dialogType={isMyDesignsDialogOpen ? "myDesigns" : "welcomeBack"}
-        designs={userDesigns}
-        onLoadDesignClick={(designId, designName) => {
-          handleLoadDesign(designId, designName);
-          setIsWelcomeBackDialogOpen(false);
-          setIsMyDesignsDialogOpen(false);
-        }}
-        onCreateNewClick={() => {
-          setIsWelcomeBackDialogOpen(false);
-          setIsMyDesignsDialogOpen(false);
-          handleOpenNewDesignDialog(true);
-        }}
-      />
-      
-      <TemplateBrowserDialog
-        isOpen={isTemplateBrowserOpen}
-        onClose={() => setIsTemplateBrowserOpen(false)}
-        templates={initialTemplates}
-        onLoadTemplate={(nodes, edges, name) => {
-            loadTemplate(nodes, edges, name);
-            setIsTemplateBrowserOpen(false);
-        }}
-       />
-
-       <EvaluationResultDialog 
-        isOpen={isEvaluationDialogOpen}
-        onClose={() => setIsEvaluationDialogOpen(false)}
-        feedback={aiFeedback}
-      />
-
-      {isNewDesignDialogOpen && (
-        <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen && !currentDesignId && currentUser && canvasRef.current) {
-                 if(!isWelcomeBackDialogOpen && !isMyDesignsDialogOpen) {
+        <WelcomeBackDialog
+            isOpen={isWelcomeBackDialogOpen || isMyDesignsDialogOpen}
+            onClose={() => {
+                setIsWelcomeBackDialogOpen(false);
+                setIsMyDesignsDialogOpen(false);
+                if (!currentDesignId && canvasRef.current && !isMyDesignsDialogOpen) { 
                     canvasRef.current.loadTemplate(createDefaultNotes(), []);
                     setCanvasLoadedDesignId(null);
                     setCurrentDesignId(null);
                     setCurrentDesignName(null);
                     handleSetDiagramChanged(false);
-                 }
-            }
-            if (!isOpen) setNewDesignNameInput('');
-            setIsNewDesignDialogOpen(isOpen);
-        }}>
-          <DialogContent>
+                }
+            }}
+            dialogType={isMyDesignsDialogOpen ? "myDesigns" : "welcomeBack"}
+            designs={userDesigns}
+            onLoadDesignClick={(designId, designName) => {
+            handleLoadDesign(designId, designName);
+            setIsWelcomeBackDialogOpen(false);
+            setIsMyDesignsDialogOpen(false);
+            }}
+            onCreateNewClick={() => {
+            setIsWelcomeBackDialogOpen(false);
+            setIsMyDesignsDialogOpen(false);
+            handleOpenNewDesignDialog(true);
+            }}
+        />
+        
+        <TemplateBrowserDialog
+            isOpen={isTemplateBrowserOpen}
+            onClose={() => setIsTemplateBrowserOpen(false)}
+            templates={initialTemplates}
+            onLoadTemplate={(nodes, edges, name) => {
+                loadTemplate(nodes, edges, name);
+                setIsTemplateBrowserOpen(false);
+            }}
+        />
+
+        <EvaluationResultDialog 
+            isOpen={isEvaluationDialogOpen}
+            onClose={() => setIsEvaluationDialogOpen(false)}
+            feedback={aiFeedback}
+        />
+
+        {isNewDesignDialogOpen && (
+            <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
+                if (!isOpen && !currentDesignId && currentUser && canvasRef.current) {
+                    if(!isWelcomeBackDialogOpen && !isMyDesignsDialogOpen) {
+                        canvasRef.current.loadTemplate(createDefaultNotes(), []);
+                        setCanvasLoadedDesignId(null);
+                        setCurrentDesignId(null);
+                        setCurrentDesignName(null);
+                        handleSetDiagramChanged(false);
+                    }
+                }
+                if (!isOpen) setNewDesignNameInput('');
+                setIsNewDesignDialogOpen(isOpen);
+            }}>
+            <DialogContent>
+                <DialogHeader>
+                <DialogTitle>Create New Design</DialogTitle>
+                </DialogHeader>
+                <div className="py-4 space-y-2">
+                <Label htmlFor="newDesignName" className="text-sm font-medium">
+                    Design Name
+                </Label>
+                <Input
+                    id="newDesignName"
+                    value={newDesignNameInput}
+                    onChange={(e) => setNewDesignNameInput(e.target.value)}
+                    placeholder="Enter a name for your system design"
+                    onKeyDown={(e) => e.key === 'Enter' && newDesignNameInput.trim() && confirmNewDesign()}
+                />
+                </div>
+                <DialogFooter>
+                <DialogClose asChild>
+                    <Button type="button" variant="outline">
+                    Cancel
+                    </Button>
+                </DialogClose>
+                <Button type="button" onClick={confirmNewDesign} disabled={!newDesignNameInput.trim()}>
+                    Create Design
+                </Button>
+                </DialogFooter>
+            </DialogContent>
+            </Dialog>
+        )}
+
+        {/* Terraform Export Provider Selection Dialog */}
+        <Dialog open={isTerraformExportDialogOpen} onOpenChange={setIsTerraformExportDialogOpen}>
+            <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Design</DialogTitle>
+                <DialogTitle>Export to Terraform (Experimental)</DialogTitle>
+                <DialogDescription>
+                Select a target cloud provider. The generated HCL will be a starting point and requires review.
+                </DialogDescription>
             </DialogHeader>
-            <div className="py-4 space-y-2">
-              <Label htmlFor="newDesignName" className="text-sm font-medium">
-                Design Name
-              </Label>
-              <Input
-                id="newDesignName"
-                value={newDesignNameInput}
-                onChange={(e) => setNewDesignNameInput(e.target.value)}
-                placeholder="Enter a name for your system design"
-                onKeyDown={(e) => e.key === 'Enter' && newDesignNameInput.trim() && confirmNewDesign()}
-              />
+            <div className="py-4 space-y-4">
+                <div>
+                <Label htmlFor="terraformProvider" className="text-sm font-medium">
+                    Cloud Provider
+                </Label>
+                <Select
+                    value={selectedTerraformProvider}
+                    onValueChange={(value) => setSelectedTerraformProvider(value as 'AWS' | 'GCP' | 'Azure' | '')}
+                >
+                    <SelectTrigger id="terraformProvider" className="mt-1">
+                    <SelectValue placeholder="Select a provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value="AWS">Amazon Web Services (AWS)</SelectItem>
+                    <SelectItem value="GCP">Google Cloud Platform (GCP)</SelectItem>
+                    <SelectItem value="Azure">Microsoft Azure</SelectItem>
+                    </SelectContent>
+                </Select>
+                </div>
             </div>
             <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button type="button" onClick={confirmNewDesign} disabled={!newDesignNameInput.trim()}>
-                Create Design
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Terraform Export Provider Selection Dialog */}
-      <Dialog open={isTerraformExportDialogOpen} onOpenChange={setIsTerraformExportDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Export to Terraform (Experimental)</DialogTitle>
-            <DialogDescription>
-              Select a target cloud provider. The generated HCL will be a starting point and requires review.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div>
-              <Label htmlFor="terraformProvider" className="text-sm font-medium">
-                Cloud Provider
-              </Label>
-              <Select
-                value={selectedTerraformProvider}
-                onValueChange={(value) => setSelectedTerraformProvider(value as 'AWS' | 'GCP' | 'Azure' | '')}
-              >
-                <SelectTrigger id="terraformProvider" className="mt-1">
-                  <SelectValue placeholder="Select a provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="AWS">Amazon Web Services (AWS)</SelectItem>
-                  <SelectItem value="GCP">Google Cloud Platform (GCP)</SelectItem>
-                  <SelectItem value="Azure">Microsoft Azure</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button
-              type="button"
-              onClick={handleGenerateTerraformSubmit}
-              disabled={!selectedTerraformProvider || isGeneratingTerraform}
-            >
-              {isGeneratingTerraform ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Generate HCL
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Terraform Result Modal */}
-      <Dialog open={isTerraformResultModalOpen} onOpenChange={setIsTerraformResultModalOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Generated Terraform HCL</DialogTitle>
-            <DialogDescription>
-              This is a skeleton HCL. Review and modify it carefully before use.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4 max-h-[70vh] flex flex-col">
-            {isGeneratingTerraform && (
-                <div className="flex items-center justify-center p-8">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                </div>
-            )}
-            {terraformExportResult && (
-              <>
-                {(terraformExportResult.warnings && terraformExportResult.warnings.length > 0) && (
-                  <Card className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-900/10">
-                    <CardHeader className="pb-2 pt-3 px-4">
-                      <CardTitle className="text-base text-yellow-700 dark:text-yellow-300 flex items-center">
-                        <AlertTriangle className="h-5 w-5 mr-2" /> Warnings
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 text-sm text-yellow-600 dark:text-yellow-400">
-                      <ul className="list-disc pl-5 space-y-1">
-                        {terraformExportResult.warnings.map((warning, index) => (
-                          <li key={`warning-${index}`}>{warning}</li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                )}
-
-                <div className="flex-1 overflow-hidden flex flex-col">
-                  <Label htmlFor="terraformHclOutput" className="text-sm font-medium mb-1">
-                    Terraform Code:
-                  </Label>
-                  <ScrollArea className="flex-1 border rounded-md bg-muted/30">
-                    <Textarea
-                      id="terraformHclOutput"
-                      value={terraformExportResult.terraformHcl}
-                      readOnly
-                      className="h-full min-h-[200px] font-mono text-xs p-3 bg-transparent border-0 focus-visible:ring-0"
-                      rows={15}
-                    />
-                  </ScrollArea>
-                </div>
+                <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+                </DialogClose>
                 <Button
-                    onClick={() => copyToClipboard(terraformExportResult.terraformHcl)}
-                    variant="outline"
-                    className="mt-2 self-start"
+                type="button"
+                onClick={handleGenerateTerraformSubmit}
+                disabled={!selectedTerraformProvider || isGeneratingTerraform}
                 >
-                    <Copy className="mr-2 h-4 w-4" /> Copy HCL
+                {isGeneratingTerraform ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Generate HCL
                 </Button>
+            </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
-                {(terraformExportResult.suggestions && terraformExportResult.suggestions.length > 0) && (
-                  <Card className="border-blue-500/50 bg-blue-50 dark:bg-blue-900/10 mt-4">
-                    <CardHeader className="pb-2 pt-3 px-4">
-                      <CardTitle className="text-base text-blue-700 dark:text-blue-300">Suggestions</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 text-sm text-blue-600 dark:text-blue-400">
-                      <ul className="list-disc pl-5 space-y-1">
-                        {terraformExportResult.suggestions.map((suggestion, index) => (
-                          <li key={`suggestion-${index}`}>{suggestion}</li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
+        {/* Terraform Result Modal */}
+        <Dialog open={isTerraformResultModalOpen} onOpenChange={setIsTerraformResultModalOpen}>
+            <DialogContent className="max-w-3xl">
+            <DialogHeader>
+                <DialogTitle>Generated Terraform HCL</DialogTitle>
+                <DialogDescription>
+                This is a skeleton HCL. Review and modify it carefully before use.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4 max-h-[70vh] flex flex-col">
+                {isGeneratingTerraform && (
+                    <div className="flex items-center justify-center p-8">
+                        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    </div>
                 )}
-              </>
-            )}
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setIsTerraformResultModalOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
+                {terraformExportResult && (
+                <>
+                    {(terraformExportResult.warnings && terraformExportResult.warnings.length > 0) && (
+                    <Card className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-900/10">
+                        <CardHeader className="pb-2 pt-3 px-4">
+                        <CardTitle className="text-base text-yellow-700 dark:text-yellow-300 flex items-center">
+                            <AlertTriangle className="h-5 w-5 mr-2" /> Warnings
+                        </CardTitle>
+                        </CardHeader>
+                        <CardContent className="px-4 pb-3 text-sm text-yellow-600 dark:text-yellow-400">
+                        <ul className="list-disc pl-5 space-y-1">
+                            {terraformExportResult.warnings.map((warning, index) => (
+                            <li key={`warning-${index}`}>{warning}</li>
+                            ))}
+                        </ul>
+                        </CardContent>
+                    </Card>
+                    )}
 
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                    <Label htmlFor="terraformHclOutput" className="text-sm font-medium mb-1">
+                        Terraform Code:
+                    </Label>
+                    <ScrollArea className="flex-1 border rounded-md bg-muted/30">
+                        <Textarea
+                        id="terraformHclOutput"
+                        value={terraformExportResult.terraformHcl}
+                        readOnly
+                        className="h-full min-h-[200px] font-mono text-xs p-3 bg-transparent border-0 focus-visible:ring-0"
+                        rows={15}
+                        />
+                    </ScrollArea>
+                    </div>
+                    <Button
+                        onClick={() => copyToClipboard(terraformExportResult.terraformHcl)}
+                        variant="outline"
+                        className="mt-2 self-start"
+                    >
+                        <Copy className="mr-2 h-4 w-4" /> Copy HCL
+                    </Button>
 
-export function ArchitechApp() {
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  if (!isClient) {
-    return (
-        <div className="flex h-screen items-center justify-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    {(terraformExportResult.suggestions && terraformExportResult.suggestions.length > 0) && (
+                    <Card className="border-blue-500/50 bg-blue-50 dark:bg-blue-900/10 mt-4">
+                        <CardHeader className="pb-2 pt-3 px-4">
+                        <CardTitle className="text-base text-blue-700 dark:text-blue-300">Suggestions</CardTitle>
+                        </CardHeader>
+                        <CardContent className="px-4 pb-3 text-sm text-blue-600 dark:text-blue-400">
+                        <ul className="list-disc pl-5 space-y-1">
+                            {terraformExportResult.suggestions.map((suggestion, index) => (
+                            <li key={`suggestion-${index}`}>{suggestion}</li>
+                            ))}
+                        </ul>
+                        </CardContent>
+                    </Card>
+                    )}
+                </>
+                )}
+            </div>
+            <DialogFooter>
+                <Button onClick={() => setIsTerraformResultModalOpen(false)}>Close</Button>
+            </DialogFooter>
+            </DialogContent>
+        </Dialog>
         </div>
-    );
-  }
-
-  return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="flex flex-col h-screen">
-        <TopNavigationBar
-          currentDesignName={"Design"}
-          currentUser={null}
-          isSavingDesign={false}
-          onMyDesignsClick={() => {}}
-          onSaveDesign={() => {}}
-          canSave={false}
-          onExportDesign={() => {}}
-          onImportDesignClick={() => {}}
-          onExportToTerraformClick={() => {}}
-          onNewDesignClick={() => {}}
-          onBrowseTemplatesClick={() => {}}
-          onLogout={() => {}}
-          themes={[]}
-          setTheme={() => {}}
-        />
-        <AppContent />
-      </div>
     </SidebarProvider>
   );
 }
+
+    
