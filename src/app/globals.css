@@ -57,13 +57,6 @@ body {
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-
-    /* AI Button Styles */
-    --ai-btn-bg: 220 23% 11%;
-    --ai-btn-bg-hover: 220 23% 16%;
-    --ai-btn-fg: 180 90% 60%;
-    --ai-btn-gradient-from: 180 90% 60%;
-    --ai-btn-gradient-to: 210 85% 65%;
   }
 
   .dark {
@@ -107,13 +100,6 @@ body {
     --sidebar-accent-foreground: 275 68% 59%;
     --sidebar-border: 240 10% 15%;
     --sidebar-ring: 270 97% 45%;
-
-    /* AI Button Styles (same for dark/light) */
-    --ai-btn-bg: 220 23% 11%;
-    --ai-btn-bg-hover: 220 23% 16%;
-    --ai-btn-fg: 180 90% 60%;
-    --ai-btn-gradient-from: 180 90% 60%;
-    --ai-btn-gradient-to: 210 85% 65%;
   }
 
   .theme-ocean {

@@ -60,23 +60,12 @@ export default {
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
   			},
-        'ai-btn': {
-          DEFAULT: 'hsl(var(--ai-btn-bg))',
-          foreground: 'hsl(var(--ai-btn-fg))',
-          hover: 'hsl(var(--ai-btn-bg-hover))'
-        },
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
-      backgroundImage: {
-        'animated-ai-gradient': 'linear-gradient(90deg, hsl(var(--ai-btn-gradient-from)), hsl(var(--ai-btn-gradient-to)), hsl(var(--ai-btn-gradient-from)))',
-      },
-      backgroundSize: {
-        '300%': '300% auto',
-      },
   		keyframes: {
   			'accordion-down': {
   				from: {
@@ -102,18 +91,12 @@ export default {
           '0%, 100%': { opacity: '0.7', transform: 'scale(0.95)' },
           '50%': { opacity: '1', transform: 'scale(1.1)' },
         },
-        'animated-gradient': {
-          '0%': { backgroundPosition: '0% 50%' },
-          '50%': { backgroundPosition: '100% 50%' },
-          '100%': { backgroundPosition: '0% 50%' }
-        }
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
         'ai-border-pulse': 'ai-border-pulse 2.5s infinite ease-in-out',
         'ai-sparkle-pulse': 'ai-sparkle-pulse 1.8s infinite ease-in-out',
-        'animated-gradient': 'animated-gradient 3s ease infinite',
   		}
   	}
   },
