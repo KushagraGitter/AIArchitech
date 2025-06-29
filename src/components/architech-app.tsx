@@ -962,87 +962,89 @@ function AppContent() {
 
   return (
     <>
-      <AppSidebar
-        form={form}
-        onSubmit={onSubmitEvaluation}
-        isLoadingEvaluation={isLoadingEvaluation}
-        aiFeedback={aiFeedback}
-        groupedDesignComponents={groupedDesignComponents}
-        onDragStart={onDragStart}
+      <TopNavigationBar
+        currentDesignName={currentDesignName}
+        currentUser={currentUser}
+        isSavingDesign={isSavingDesign}
+        onMyDesignsClick={() => {
+          fetchUserDesigns();
+          setIsMyDesignsDialogOpen(true);
+          setIsWelcomeBackDialogOpen(false);
+        }}
+        onSaveDesign={handleSaveDesign}
+        canSave={!!currentDesignId && !(currentDesignName || "").endsWith("(Unsaved)")}
+        onExportDesign={handleExportDesign}
+        onImportDesignClick={() => importFileRef.current?.click()}
+        onExportToTerraformClick={handleExportToTerraformClick}
+        onNewDesignClick={handleNewDesignButtonClick}
+        onBrowseTemplatesClick={() => setIsTemplateBrowserOpen(true)}
+        onLogout={handleLogout}
+        themes={themeOptions}
+        setTheme={setTheme}
+      />
+      <input
+        type="file"
+        ref={importFileRef}
+        onChange={handleImportFileChange}
+        accept=".json"
+        className="hidden"
       />
       
-      <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col">
-        <TopNavigationBar
-          currentDesignName={currentDesignName}
-          currentUser={currentUser}
-          isSavingDesign={isSavingDesign}
-          onMyDesignsClick={() => {
-            fetchUserDesigns();
-            setIsMyDesignsDialogOpen(true);
-            setIsWelcomeBackDialogOpen(false);
-          }}
-          onSaveDesign={handleSaveDesign}
-          canSave={!!currentDesignId && !(currentDesignName || "").endsWith("(Unsaved)")}
-          onExportDesign={handleExportDesign}
-          onImportDesignClick={() => importFileRef.current?.click()}
-          onExportToTerraformClick={handleExportToTerraformClick}
-          onNewDesignClick={handleNewDesignButtonClick} 
-          onBrowseTemplatesClick={() => setIsTemplateBrowserOpen(true)}
-          onLogout={handleLogout}
-          themes={themeOptions}
-          setTheme={setTheme}
-        />
-         <input 
-            type="file" 
-            ref={importFileRef} 
-            onChange={handleImportFileChange} 
-            accept=".json" 
-            className="hidden"
+      <div className="flex flex-1 min-h-0">
+        <AppSidebar
+          form={form}
+          onSubmit={onSubmitEvaluation}
+          isLoadingEvaluation={isLoadingEvaluation}
+          aiFeedback={aiFeedback}
+          groupedDesignComponents={groupedDesignComponents}
+          onDragStart={onDragStart}
         />
 
-
-        <ReactFlowProvider>
-          <div className="flex flex-1 min-h-0"> 
-            <main className="flex-1 overflow-auto p-0 flex flex-col"> 
+        <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col">
+          <ReactFlowProvider>
+            <div className="flex flex-1 min-h-0">
+              <main className="flex-1 overflow-auto p-0 flex flex-col">
                 <DesignCanvas
-                    ref={canvasRef}
-                    className="flex-1"
-                    onNodeSelect={handleNodeSelect}
-                    onStructuralChange={() => {
-                        console.log("ArchitechApp: onStructuralChange called from DesignCanvas");
-                        handleSetDiagramChanged(true);
-                    }}
+                  ref={canvasRef}
+                  className="flex-1"
+                  onNodeSelect={handleNodeSelect}
+                  onStructuralChange={() => {
+                    console.log("ArchitechApp: onStructuralChange called from DesignCanvas");
+                    handleSetDiagramChanged(true);
+                  }}
                 />
-            </main>
-            {selectedNode && selectedComponentConfig && (
-              <aside className="w-80 border-l border-border bg-card hidden md:block">
-                <ScrollArea className="h-full">
-                  <PropertiesPanel
-                    key={selectedNode.id}
-                    selectedNode={selectedNode}
-                    componentConfig={selectedComponentConfig}
-                    onUpdateNode={handleUpdateNodeProperties}
-                    onClose={() => setSelectedNode(null)}
-                  />
-                </ScrollArea>
-              </aside>
-            )}
-             {selectedNode && !selectedComponentConfig && (
-                <aside className="w-80 border-l border-border bg-card hidden md:block p-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Component Error</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-destructive">Could not find configuration for the selected component: "{selectedNode.data.label}".</p>
-                            <p className="text-xs text-muted-foreground mt-2">This might happen if the component's label was manually changed or if its configuration is missing.</p>
-                        </CardContent>
-                    </Card>
+              </main>
+              {selectedNode && selectedComponentConfig && (
+                <aside className="w-80 border-l border-border bg-card hidden md:block">
+                  <ScrollArea className="h-full">
+                    <PropertiesPanel
+                      key={selectedNode.id}
+                      selectedNode={selectedNode}
+                      componentConfig={selectedComponentConfig}
+                      onUpdateNode={handleUpdateNodeProperties}
+                      onClose={() => setSelectedNode(null)}
+                    />
+                  </ScrollArea>
                 </aside>
-            )}
-          </div>
-        </ReactFlowProvider>
-      </SidebarInset>
+              )}
+              {selectedNode && !selectedComponentConfig && (
+                <aside className="w-80 border-l border-border bg-card hidden md:block p-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Component Error</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-destructive">Could not find configuration for the selected component: "{selectedNode.data.label}".</p>
+                      <p className="text-xs text-muted-foreground mt-2">This might happen if the component's label was manually changed or if its configuration is missing.</p>
+                    </CardContent>
+                  </Card>
+                </aside>
+              )}
+            </div>
+          </ReactFlowProvider>
+        </SidebarInset>
+      </div>
+
 
       <Button
         variant="outline"
