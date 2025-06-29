@@ -59,13 +59,24 @@ export default {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
-  			}
+  			},
+        'ai-btn': {
+          DEFAULT: 'hsl(var(--ai-btn-bg))',
+          foreground: 'hsl(var(--ai-btn-fg))',
+          hover: 'hsl(var(--ai-btn-bg-hover))'
+        },
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
+      backgroundImage: {
+        'animated-ai-gradient': 'linear-gradient(90deg, hsl(var(--ai-btn-gradient-from)), hsl(var(--ai-btn-gradient-to)), hsl(var(--ai-btn-gradient-from)))',
+      },
+      backgroundSize: {
+        '300%': '300% auto',
+      },
   		keyframes: {
   			'accordion-down': {
   				from: {

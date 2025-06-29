@@ -324,13 +324,18 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           />
         </ReactFlow>
 
-        <div className="absolute top-4 right-4 z-10">
+        <div className={cn(
+          "absolute top-4 right-4 z-10",
+          !isLoadingEvaluation && !aiFeedback && "rounded-full p-[2px] bg-animated-ai-gradient bg-300% animate-animated-gradient"
+        )}>
           <Button
             onClick={onEvaluateClick}
             disabled={isLoadingEvaluation}
             className={cn(
-              "shadow-lg",
-              !isLoadingEvaluation && !aiFeedback && "animate-ai-border-pulse"
+              "shadow-lg w-full",
+              !isLoadingEvaluation && !aiFeedback
+                ? "bg-ai-btn hover:bg-ai-btn-hover text-ai-btn-foreground rounded-full"
+                : ""
             )}
           >
             {isLoadingEvaluation ? (
@@ -345,7 +350,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
               </>
             ) : (
               <>
-                <Sparkles className="mr-2 h-4 w-4 animate-ai-sparkle-pulse" />
+                <Sparkles className="mr-2 h-4 w-4" />
                 Evaluate Design
               </>
             )}
