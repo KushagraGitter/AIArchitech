@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Sparkles, Layers, FileText, Search, Wand2, BookCopy } from 'lucide-react';
+import { Loader2, Sparkles, Layers, FileText, Search, BookCopy } from 'lucide-react';
 import type { NodeData } from '@/components/design-canvas';
 import type { EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 import type { ComponentGroup, ComponentConfig } from '@/components/designComponents'; 
@@ -38,8 +38,6 @@ interface AppSidebarProps {
   initialTemplates: { name: string; nodes: Node<NodeData>[]; edges: Edge[] }[];
   onDragStart: (event: React.DragEvent, component: ComponentConfig, color: string, borderColor: string) => void;
   onLoadTemplate: (nodes: Node<NodeData>[], edges: Edge[], templateName: string) => void;
-  isGeneratingDesign: boolean;
-  onGenerateDesign: () => void;
 }
 
 export function AppSidebar({
@@ -51,8 +49,6 @@ export function AppSidebar({
   initialTemplates,
   onDragStart,
   onLoadTemplate,
-  isGeneratingDesign,
-  onGenerateDesign,
 }: AppSidebarProps) {
   const [componentSearchTerm, setComponentSearchTerm] = useState('');
 
@@ -149,61 +145,45 @@ export function AppSidebar({
 
               <Separator className="my-0" />
               <div className="p-4">
-                 <div className="grid grid-cols-2 gap-2 group-data-[collapsible=icon]:grid-cols-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={onGenerateDesign}
-                      disabled={isGeneratingDesign || isLoadingEvaluation}
-                      className="w-full"
-                    >
-                      {isGeneratingDesign ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Wand2 className="mr-2 h-4 w-4" />
-                      )}
-                      <span className="group-data-[collapsible=icon]:hidden">Generate</span>
-                    </Button>
-                    <Button
-                      type="submit"
-                      className={cn(
-                        "w-full rounded-full text-primary-foreground", 
-                        !isLoadingEvaluation && "animate-ai-border-pulse bg-gradient-to-r from-primary via-accent to-primary bg-[size:200%_auto] animate-animated-gradient hover:opacity-90",
-                        isLoadingEvaluation && "bg-primary" // Keep solid primary bg when loading
-                      )}
-                      disabled={isLoadingEvaluation || isGeneratingDesign}
-                    >
-                      {isLoadingEvaluation ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Sparkles
-                          className={cn(
-                            "mr-2 h-4 w-4 text-primary-foreground", 
-                            !isLoadingEvaluation && "animate-ai-sparkle-pulse"
-                          )}
-                        />
-                      )}
-                      <span className="group-data-[collapsible=icon]:hidden">Evaluate</span>
-                    </Button>
-                  </div>
+                 <Button
+                    type="submit"
+                    className={cn(
+                      "w-full rounded-full text-primary-foreground", 
+                      !isLoadingEvaluation && "animate-ai-border-pulse bg-gradient-to-r from-primary via-accent to-primary bg-[size:200%_auto] animate-animated-gradient hover:opacity-90",
+                      isLoadingEvaluation && "bg-primary" // Keep solid primary bg when loading
+                    )}
+                    disabled={isLoadingEvaluation}
+                  >
+                    {isLoadingEvaluation ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles
+                        className={cn(
+                          "mr-2 h-4 w-4 text-primary-foreground", 
+                          !isLoadingEvaluation && "animate-ai-sparkle-pulse"
+                        )}
+                      />
+                    )}
+                    <span className="group-data-[collapsible=icon]:hidden">Evaluate</span>
+                  </Button>
               </div>
             </form>
           </Form>
 
-          {(isLoadingEvaluation || isGeneratingDesign) && (
+          {isLoadingEvaluation && (
             <div className="p-4">
               <Card className="shadow-none border-dashed">
                 <CardContent className="p-6 flex flex-col items-center justify-center">
                   <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
                   <p className="text-muted-foreground">
-                    {isGeneratingDesign ? "AI is generating your design..." : "AI is analyzing your design..."}
+                    AI is analyzing your design...
                   </p>
                 </CardContent>
               </Card>
             </div>
           )}
 
-          {aiFeedback && !isLoadingEvaluation && !isGeneratingDesign && (
+          {aiFeedback && !isLoadingEvaluation && (
             <>
             <Separator className="my-2" />
             <div className="p-4 space-y-2">

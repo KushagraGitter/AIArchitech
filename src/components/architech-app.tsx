@@ -968,8 +968,6 @@ function AppContent() {
         initialTemplates={initialTemplates}
         onDragStart={onDragStart}
         onLoadTemplate={loadTemplate}
-        isGeneratingDesign={isGeneratingDesign}
-        onGenerateDesign={handleGenerateDesign}
       />
       
       <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col">
@@ -1282,4 +1280,3 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
-
