@@ -1,10 +1,9 @@
-
 import type { ComponentConfig } from '@/components/properties-panel';
 import { 
-  StickyNote, Shuffle, Waypoints, Server, Database, Zap, GitFork, Cloud, ShieldCheck, Box, BarChartBig, Users, MessageSquare, Link2, ServerCog, Smartphone, Globe, Network as NetworkIcon, DatabaseZap as DatabaseIcon, Archive as StorageIcon, MessageCircle as MessagingIcon, Shield as SecurityIcon, Activity as MonitoringIcon, Settings2 as ServicesIcon, Users2 as GeneralIcon, Cpu as ComputeIcon, FolderKanban,
+  StickyNote, Shuffle, Waypoints, Server, Database, Zap, GitFork, Cloud, ShieldCheck, Box, BarChartBig, Users, MessageSquare, Link2, ServerCog, Smartphone, Globe, Network as NetworkIcon, Archive as StorageIcon, MessageCircle as MessagingIcon, Shield as SecurityIcon, Activity as MonitoringIcon, Settings2 as ServicesIcon, Users2 as GeneralIcon, Cpu as ComputeIcon, FolderKanban,
   Container, CloudCog, Warehouse, Spline, Fingerprint, ScrollText, Workflow, Wrench, Shapes,
   // New Icons
-  GitMerge, Search, Clock, KeyRound, LineChart, BrainCircuit
+  GitMerge, Search, Clock, KeyRound, LineChart, BrainCircuit, DatabaseZap
 } from 'lucide-react';
 
 export interface ComponentGroup {
@@ -533,7 +532,7 @@ export const groupedDesignComponents: ComponentGroup[] = [
   { groupName: "General", groupIcon: GeneralIcon, color: "text-slate-500", borderColor: "border-slate-500", components: generalComponents },
   { groupName: "Compute", groupIcon: ComputeIcon, color: "text-sky-500", borderColor: "border-sky-500", components: computeComponents },
   { groupName: "Networking", groupIcon: NetworkIcon, color: "text-amber-500", borderColor: "border-amber-500", components: networkingComponents },
-  { groupName: "Databases", groupIcon: DatabaseIcon, color: "text-violet-500", borderColor: "border-violet-500", components: databaseComponents },
+  { groupName: "Databases", groupIcon: DatabaseZap, color: "text-violet-500", borderColor: "border-violet-500", components: databaseComponents },
   { groupName: "Storage & Caching", groupIcon: StorageIcon, color: "text-rose-500", borderColor: "border-rose-500", components: storageComponents },
   { groupName: "Messaging", groupIcon: MessagingIcon, color: "text-teal-500", borderColor: "border-teal-500", components: messagingComponents },
   { groupName: "Security", groupIcon: SecurityIcon, color: "text-red-500", borderColor: "border-red-500", components: securityComponents },

@@ -41,12 +41,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, MessageSquarePlus, Copy, AlertTriangle } from 'lucide-react';
 
 import { DesignCanvas, type DesignCanvasHandles, type NodeData } from '@/components/design-canvas';
-import { PropertiesPanel, type ComponentConfig } from '@/components/properties-panel';
+import { PropertiesPanel } from '@/components/properties-panel';
+import type { ComponentConfig } from '@/components/designComponents';
 import type { EvaluateSystemDesignInput, EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 import { evaluateSystemDesign } from '@/ai/flows/evaluate-system-design';
 import type { GenerateTerraformInput, GenerateTerraformOutput } from '@/ai/flows/generate-terraform-flow';
 import { generateTerraform } from '@/ai/flows/generate-terraform-flow';
-import { themes as themeOptions, type ThemeOption } from '@/components/theme-toggle-button'; 
+import { type ThemeOption, themes as themeOptions } from '@/components/theme-toggle-button'; 
 import { ChatBotWindow, type ChatMessage } from '@/components/chat-bot-window';
 import type { InterviewBotInput } from '@/ai/flows/interview-bot-flow';
 import { interviewBot } from '@/ai/flows/interview-bot-flow';
@@ -546,7 +547,7 @@ function AppContent() {
   };
   
   const selectedComponentConfig = selectedNode 
-    ? designComponents.find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName || c.name === selectedNode.data.label.replace(/ \(.+\)$/, '')) 
+    ? designComponents.find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName)
     : undefined;
 
 
@@ -988,7 +989,7 @@ function AppContent() {
           onNewDesignClick={handleNewDesignButtonClick} 
           onBrowseTemplatesClick={() => setIsTemplateBrowserOpen(true)}
           onLogout={handleLogout}
-          themes={themeOptions as ThemeOption[]} 
+          themes={themeOptions}
           setTheme={setTheme}
         />
          <input 
