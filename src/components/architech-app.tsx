@@ -649,11 +649,15 @@ export function ArchitechApp() {
     }
   };
 
-  const handleEvaluateButtonClick = () => {
-    if (aiFeedback && !isLoadingEvaluation) {
-      setIsEvaluationDialogOpen(true);
-    } else if (!isLoadingEvaluation) {
-      onSubmitEvaluation({}); // Pass empty data as form is gone
+  const handleNewEvaluation = () => {
+    if (!isLoadingEvaluation) {
+      onSubmitEvaluation({});
+    }
+  };
+
+  const handleOpenEvaluationDialog = () => {
+    if (aiFeedback) {
+        setIsEvaluationDialogOpen(true);
     }
   };
 
@@ -1028,7 +1032,8 @@ export function ArchitechApp() {
                         console.log("ArchitechApp: onStructuralChange called from DesignCanvas");
                         handleSetDiagramChanged(true);
                     }}
-                    onEvaluateClick={handleEvaluateButtonClick}
+                    onEvaluateClick={handleNewEvaluation}
+                    onSeeEvaluationClick={handleOpenEvaluationDialog}
                     isLoadingEvaluation={isLoadingEvaluation}
                     aiFeedback={aiFeedback}
                     />

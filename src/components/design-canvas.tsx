@@ -58,6 +58,7 @@ interface DesignCanvasProps {
   onStructuralChange?: () => void;
   className?: string;
   onEvaluateClick: () => void;
+  onSeeEvaluationClick: () => void;
   isLoadingEvaluation: boolean;
   aiFeedback: EvaluateSystemDesignOutput | null;
 }
@@ -68,7 +69,7 @@ const getNextNodeId = () => `dndnode_${idCounter++}`;
 const getNextEdgeId = () => `edge_${idCounter++}`;
 
 
-export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>(({ onNodeSelect, onStructuralChange, className, onEvaluateClick, isLoadingEvaluation, aiFeedback }, ref) => {
+export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>(({ onNodeSelect, onStructuralChange, className, onEvaluateClick, onSeeEvaluationClick, isLoadingEvaluation, aiFeedback }, ref) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChangeInternal] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChangeInternal] = useEdgesState([]);
@@ -324,35 +325,41 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           />
         </ReactFlow>
 
-        <div className="absolute top-4 right-4 z-10">
-          <Button
-            onClick={onEvaluateClick}
-            disabled={isLoadingEvaluation}
-            className={cn(
-              "shadow-lg rounded-full",
-              !isLoadingEvaluation && !aiFeedback && "animate-ai-border-pulse"
+        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+            {aiFeedback && !isLoadingEvaluation && (
+                <Button
+                    onClick={onSeeEvaluationClick}
+                    variant="outline"
+                    className="shadow-lg rounded-full bg-card/80 backdrop-blur-sm"
+                >
+                    <Sparkles className="mr-2 h-4 w-4 text-primary" />
+                    See Evaluation
+                </Button>
             )}
-          >
-            {isLoadingEvaluation ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Evaluating...
-              </>
-            ) : aiFeedback ? (
-              <>
-                <Sparkles className="mr-2 h-4 w-4" />
-                See Evaluation
-              </>
-            ) : (
-              <>
-                <Sparkles className={cn(
-                  "mr-2 h-4 w-4",
-                  !isLoadingEvaluation && !aiFeedback && "animate-ai-sparkle-pulse"
-                )} />
-                Evaluate Design
-              </>
-            )}
-          </Button>
+
+            <Button
+                onClick={onEvaluateClick}
+                disabled={isLoadingEvaluation}
+                className={cn(
+                "shadow-lg rounded-full",
+                !isLoadingEvaluation && !aiFeedback && "animate-ai-border-pulse"
+                )}
+            >
+                {isLoadingEvaluation ? (
+                <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Evaluating...
+                </>
+                ) : (
+                <>
+                    <Sparkles className={cn(
+                    "mr-2 h-4 w-4",
+                    !isLoadingEvaluation && !aiFeedback && "animate-ai-sparkle-pulse"
+                    )} />
+                    {aiFeedback ? 'Evaluate Again' : 'Evaluate Design'}
+                </>
+                )}
+            </Button>
         </div>
 
         {isEdgeDialogVisible && (
