@@ -153,6 +153,7 @@ function AppContent() {
   const [selectedTerraformProvider, setSelectedTerraformProvider] = useState<'AWS' | 'GCP' | 'Azure' | ''>('');
   const [isTerraformResultModalOpen, setIsTerraformResultModalOpen] = useState(false);
   const [terraformExportResult, setTerraformExportResult] = useState<GenerateTerraformOutput | null>(null);
+  const [isGeneratingTerraform, setIsGeneratingTerraform] = useState(false);
   const [isTemplateBrowserOpen, setIsTemplateBrowserOpen] = useState(false);
   const [isEvaluationDialogOpen, setIsEvaluationDialogOpen] = useState(false);
 
@@ -1307,7 +1308,25 @@ export function ArchitechApp() {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <AppContent />
+      <div className="flex flex-col h-screen">
+        <TopNavigationBar
+          currentDesignName={"Design"}
+          currentUser={null}
+          isSavingDesign={false}
+          onMyDesignsClick={() => {}}
+          onSaveDesign={() => {}}
+          canSave={false}
+          onExportDesign={() => {}}
+          onImportDesignClick={() => {}}
+          onExportToTerraformClick={() => {}}
+          onNewDesignClick={() => {}}
+          onBrowseTemplatesClick={() => {}}
+          onLogout={() => {}}
+          themes={[]}
+          setTheme={() => {}}
+        />
+        <AppContent />
+      </div>
     </SidebarProvider>
   );
 }
