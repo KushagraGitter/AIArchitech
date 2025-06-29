@@ -103,13 +103,13 @@ export function AppSidebar({
                                 key={component.name}
                                 draggable={true}
                                 onDragStart={(event) => onDragStart(event, component, group.color, group.borderColor)}
-                                className="flex items-center gap-3 p-2 rounded-lg border bg-card hover:bg-accent hover:text-accent-foreground cursor-grab group-data-[collapsible=icon]:justify-center"
+                                className="group flex items-center gap-3 p-2 rounded-lg border bg-card hover:bg-sidebar-accent cursor-grab group-data-[collapsible=icon]:justify-center"
                                 title={component.name}
                             >
-                                <component.icon className={cn("h-6 w-6 shrink-0", group.color)} />
+                                <component.icon className={cn("h-6 w-6 shrink-0 transition-colors", group.color, "group-hover:text-sidebar-accent-foreground")} />
                                 <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                                    <span className="font-semibold text-sm leading-tight text-card-foreground">{component.name}</span>
-                                    <span className="text-xs text-muted-foreground">{component.description}</span>
+                                    <span className="font-semibold text-sm leading-tight text-card-foreground transition-colors group-hover:text-sidebar-accent-foreground">{component.name}</span>
+                                    <span className="text-xs text-muted-foreground transition-colors group-hover:text-sidebar-accent-foreground">{component.description}</span>
                                 </div>
                             </div>
                             ))}
