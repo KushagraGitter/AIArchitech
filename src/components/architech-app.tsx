@@ -1,85 +1,88 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import type { Node, Edge } from 'reactflow';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { Node, Edge } from 'reactflow';
-import { ReactFlowProvider } from 'reactflow';
+import { useTheme } from 'next-themes';
 import {
   collection,
   doc,
   setDoc,
   getDoc,
   getDocs,
+  deleteDoc,
   query,
   where,
-  serverTimestamp,
   orderBy,
+  limit,
   Timestamp,
+  serverTimestamp,
+  addDoc,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase'; 
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2, MessageSquarePlus, Copy, AlertTriangle, Sparkles } from 'lucide-react';
+import { ReactFlowProvider } from 'reactflow';
 
+// UI and Local Component Imports
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, MessageSquarePlus, Copy, AlertTriangle, Sparkles } from 'lucide-react';
-
 import { DesignCanvas, type DesignCanvasHandles, type NodeData } from '@/components/design-canvas';
 import { PropertiesPanel } from '@/components/properties-panel';
-import type { ComponentConfig } from '@/components/designComponents';
-import type { EvaluateSystemDesignInput, EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
-import { evaluateSystemDesign } from '@/ai/flows/evaluate-system-design';
-import type { GenerateTerraformInput, GenerateTerraformOutput } from '@/ai/flows/generate-terraform-flow';
-import { generateTerraform } from '@/ai/flows/generate-terraform-flow';
-import { type ThemeOption, themes as themeOptions } from '@/components/theme-toggle-button'; 
 import { ChatBotWindow, type ChatMessage } from '@/components/chat-bot-window';
-import type { InterviewBotInput } from '@/ai/flows/interview-bot-flow';
-import { interviewBot } from '@/ai/flows/interview-bot-flow';
-import { useAuth } from '@/contexts/AuthContext';
-import { WelcomeBackDialog } from '@/components/welcome-back-dialog';
-import { useTheme } from "next-themes";
-
+import { WelcomeBackDialog } from './welcome-back-dialog';
 import { AuthSection } from './auth-section';
 import { AppSidebar } from './app-sidebar';
 import { TopNavigationBar } from './top-navigation-bar';
-import { designComponents, groupedDesignComponents } from './designComponents';
-import { initialTemplates } from './initialTemplates';
-import { generateDiagram } from '@/ai/flows/generate-diagram-flow';
 import { TemplateBrowserDialog } from './template-browser-dialog';
 import { EvaluationResultDialog } from './evaluation-result-dialog';
 
-const formSchema = z.object({
-  // Minimal schema, actual fields are dynamic
-});
-type FormValues = z.infer<typeof formSchema>;
+// Data and Template Imports
+import type { ComponentConfig } from '@/components/designComponents';
+import { designComponents, groupedDesignComponents } from './designComponents';
+import { initialTemplates } from './initialTemplates';
+import { type ThemeOption, themes as themeOptions } from '@/components/theme-toggle-button';
 
+// AI Flow Imports
+import { evaluateSystemDesign, type EvaluateSystemDesignInput, type EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
+import { generateDiagram } from '@/ai/flows/generate-diagram-flow';
+import { generateTerraform, type GenerateTerraformInput, type GenerateTerraformOutput } from '@/ai/flows/generate-terraform-flow';
+import { interviewBot, type InterviewBotInput } from '@/ai/flows/interview-bot-flow';
 
 export interface UserDesign {
   id: string;
   name: string;
+  nodes: Node<NodeData>[];
+  edges: Edge[];
+  createdAt: Timestamp;
   updatedAt: Timestamp;
+  userId: string;
 }
+
+const formSchema = z.object({});
+type FormValues = z.infer<typeof formSchema>;
 
 const LOCAL_STORAGE_ACTIVE_DESIGN_ID = 'architechAiActiveDesignId';
 const LOCAL_STORAGE_ACTIVE_DESIGN_NAME = 'architechAiActiveDesignName';
-const AUTOSAVE_DELAY_MS = 2000;
-
+const AUTOSAVE_DELAY_MS = 3000;
 
 const createDefaultNotes = (): Node<NodeData>[] => {
   const infoNoteConfig = designComponents.find(c => c.name === "Info Note");
@@ -117,8 +120,8 @@ const createDefaultNotes = (): Node<NodeData>[] => {
   ];
 };
 
-
 export function ArchitechApp() {
+  // === STATE MANAGEMENT ===
   const [isClient, setIsClient] = useState(false);
   const [isLoadingEvaluation, setIsLoadingEvaluation] = useState(false);
   const [isGeneratingDesign, setIsGeneratingDesign] = useState(false);
@@ -126,43 +129,44 @@ export function ArchitechApp() {
   const [isLoadingDesigns, setIsLoadingDesigns] = useState(false);
   const [aiFeedback, setAiFeedback] = useState<EvaluateSystemDesignOutput | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
-  const { toast } = useToast();
-  const canvasRef = useRef<DesignCanvasHandles>(null);
-  const importFileRef = useRef<HTMLInputElement>(null);
-
+  const [userDesigns, setUserDesigns] = useState<UserDesign[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isBotLoadingResponse, setIsBotLoadingResponse] = useState(false);
-
-  const [isNewDesignDialogOpen, setIsNewDesignDialogOpen] = useState(false);
-  const [newDesignNameInput, setNewDesignNameInput] = useState('');
-  const [currentDesignName, setCurrentDesignName] = useState<string | null>(null);
+  
+  // Design state
   const [currentDesignId, setCurrentDesignId] = useState<string | null>(null);
-  const [userDesigns, setUserDesigns] = useState<UserDesign[]>([]);
-
-  const [isWelcomeBackDialogOpen, setIsWelcomeBackDialogOpen] = useState(false);
-  const [isMyDesignsDialogOpen, setIsMyDesignsDialogOpen] = useState(false); 
-  const [initialDialogFlowPending, setInitialDialogFlowPending] = useState(false);
-
+  const [currentDesignName, setCurrentDesignName] = useState<string | null>(null);
   const [diagramChangedSinceLastSave, setDiagramChangedSinceLastSave] = useState(false);
-  const autosaveTimer = useRef<NodeJS.Timeout | null>(null);
-
-  const [canvasLoadedDesignId, setCanvasLoadedDesignId] = useState<string | null>(null);
-  const [isCanvasSyncing, setIsCanvasSyncing] = useState(false);
-
+  
+  // Dialog states
+  const [isWelcomeBackDialogOpen, setIsWelcomeBackDialogOpen] = useState(false);
+  const [isMyDesignsDialogOpen, setIsMyDesignsDialogOpen] = useState(false);
+  const [newDesignNameInput, setNewDesignNameInput] = useState('');
+  const [isNewDesignDialogOpen, setIsNewDesignDialogOpen] = useState(false);
+  const [isTemplateBrowserOpen, setIsTemplateBrowserOpen] = useState(false);
+  const [isEvaluationDialogOpen, setIsEvaluationDialogOpen] = useState(false);
+  
+  // Terraform Export states
   const [isTerraformExportDialogOpen, setIsTerraformExportDialogOpen] = useState(false);
   const [selectedTerraformProvider, setSelectedTerraformProvider] = useState<'AWS' | 'GCP' | 'Azure' | ''>('');
   const [isTerraformResultModalOpen, setIsTerraformResultModalOpen] = useState(false);
   const [terraformExportResult, setTerraformExportResult] = useState<GenerateTerraformOutput | null>(null);
   const [isGeneratingTerraform, setIsGeneratingTerraform] = useState(false);
-  const [isTemplateBrowserOpen, setIsTemplateBrowserOpen] = useState(false);
-  const [isEvaluationDialogOpen, setIsEvaluationDialogOpen] = useState(false);
-
-
+  
+  // Internal sync states
+  const [canvasLoadedDesignId, setCanvasLoadedDesignId] = useState<string | null>(null);
+  const [isCanvasSyncing, setIsCanvasSyncing] = useState(false);
+  const [initialDialogFlowPending, setInitialDialogFlowPending] = useState(false);
+  
+  // === REFS & HOOKS ===
+  const canvasRef = useRef<DesignCanvasHandles>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const autosaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const { toast } = useToast();
   const { currentUser, logout, loading: authLoading } = useAuth();
   const { setTheme } = useTheme();
-
-
+  
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {},
@@ -173,10 +177,10 @@ export function ArchitechApp() {
   }, []);
 
   const handleSetDiagramChanged = useCallback((changed: boolean) => {
-    console.log("Setting diagramChangedSinceLastSave to:", changed);
     setDiagramChangedSinceLastSave(changed);
   }, []);
 
+  // === DATA FETCHING & SYNC ===
   const fetchUserDesigns = useCallback(async () => {
     if (!currentUser) {
       setUserDesigns([]);
@@ -190,351 +194,177 @@ export function ArchitechApp() {
         orderBy('updatedAt', 'desc')
       );
       const querySnapshot = await getDocs(q);
-      const designs: UserDesign[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.designName && data.updatedAt) {
-            designs.push({
-            id: doc.id,
-            name: data.designName,
-            updatedAt: data.updatedAt as Timestamp,
-            });
-        }
-      });
+      const designs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserDesign));
       setUserDesigns(designs);
     } catch (error) {
       console.error("Error fetching user designs:", error);
-      toast({
-        title: "Error Fetching Designs",
-        description: `Could not load your saved designs. ${error instanceof Error ? error.message : String(error)}`,
-        variant: "destructive",
-      });
+      toast({ title: "Fetch Error", description: "Could not retrieve your designs.", variant: "destructive" });
     } finally {
       setIsLoadingDesigns(false);
     }
   }, [currentUser, toast]);
+  
+  // === CORE DESIGN ACTIONS ===
 
-
- const handleLoadDesign = useCallback(async (designId: string, designName: string): Promise<boolean> => {
-    if (!currentUser) {
-      toast({ title: "Login Required", description: "Please log in to load designs.", variant: "destructive" });
-      return false;
+  const handleNewDesign = (name: string) => {
+    if (canvasRef.current) {
+      canvasRef.current.loadTemplate(createDefaultNotes(), []);
     }
-
-    setIsLoadingDesigns(true);
+    setCurrentDesignName(name);
+    setCurrentDesignId(null); 
+    setAiFeedback(null);
+    setChatMessages([]);
+    setSelectedNode(null);
+    handleSetDiagramChanged(true); 
+    localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+    localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+    setCanvasLoadedDesignId(`new_${Date.now()}`); 
+  };
+  
+  const handleLoadDesign = useCallback(async (designId: string, designName: string) => {
     try {
       const designRef = doc(db, 'designs', designId);
-      const docSnap = await getDoc(designRef);
-
-      if (docSnap.exists()) {
-        const designData = docSnap.data();
-        const diagram = JSON.parse(designData.diagramJson) as { nodes: Node<NodeData>[], edges: Edge[] };
-
+      const designSnap = await getDoc(designRef);
+      if (designSnap.exists() && canvasRef.current) {
+        const designData = designSnap.data();
+        const nodes = designData.nodes || [];
+        const edges = designData.edges || [];
+        
+        canvasRef.current.loadTemplate(nodes, edges);
         setCurrentDesignId(designId);
         setCurrentDesignName(designName);
+        setCanvasLoadedDesignId(designId);
+        handleSetDiagramChanged(false);
+        setAiFeedback(null);
+        setSelectedNode(null);
+
         localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, designId);
         localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, designName);
-
-        if (canvasRef.current) {
-            canvasRef.current.loadTemplate(diagram.nodes, diagram.edges);
-            setCanvasLoadedDesignId(designId);
-            console.log(`handleLoadDesign: Successfully loaded ${designId} to canvas.`);
-        } else {
-            console.warn(`handleLoadDesign: Canvas not ready for ${designId}. It should load via sync effect.`);
-        }
-
-        setSelectedNode(null);
-        setAiFeedback(null);
-        setChatMessages([]);
-        handleSetDiagramChanged(false);
-        toast({ title: "Design Loaded", description: `"${designName}" is now active.` });
         return true;
       } else {
-        toast({ title: "Load Failed", description: `Design "${designName}" (ID: ${designId}) not found.`, variant: "destructive" });
-        if (localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID) === designId) {
-          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-        }
-        if (currentDesignId === designId) {
-            setCurrentDesignId(null);
-            setCurrentDesignName(null);
-            setCanvasLoadedDesignId(null);
-        }
+        toast({ title: "Load Failed", description: "Design not found.", variant: "destructive" });
         return false;
       }
     } catch (error) {
       console.error("Error loading design:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      toast({ title: "Load Error", description: `Could not load design "${designName}". ${errorMessage}`, variant: "destructive" });
-
-      if (localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID) === designId) {
-        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-      }
-       if (currentDesignId === designId) {
-            setCurrentDesignId(null);
-            setCurrentDesignName(null);
-            setCanvasLoadedDesignId(null);
-        }
+      toast({ title: "Load Error", description: "Could not load the design.", variant: "destructive" });
       return false;
+    }
+  }, [toast, handleSetDiagramChanged]);
+
+  const handleSaveDesign = useCallback(async (isAutoSave = false) => {
+    if (!currentUser || !canvasRef.current || !currentDesignName) return;
+
+    if (!isAutoSave) setIsSavingDesign(true);
+
+    try {
+      const diagramJson = canvasRef.current.getDiagramJson();
+      const { nodes, edges } = JSON.parse(diagramJson);
+
+      const designData = {
+        name: currentDesignName,
+        nodes,
+        edges,
+        userId: currentUser.uid,
+        updatedAt: serverTimestamp(),
+      };
+
+      let designIdToSave = currentDesignId;
+
+      if (designIdToSave) {
+        const designRef = doc(db, 'designs', designIdToSave);
+        await setDoc(designRef, designData, { merge: true });
+      } else {
+        const docRef = await addDoc(collection(db, 'designs'), { ...designData, createdAt: serverTimestamp() });
+        designIdToSave = docRef.id;
+        setCurrentDesignId(docRef.id);
+        localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, docRef.id);
+        localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, currentDesignName);
+      }
+      
+      setCanvasLoadedDesignId(designIdToSave);
+      handleSetDiagramChanged(false);
+      
+      if (!isAutoSave) {
+        toast({ title: "Design Saved!", description: `"${currentDesignName}" has been saved.` });
+        fetchUserDesigns();
+      } else {
+        console.log(`Autosave: Successfully saved ${designIdToSave}`);
+      }
+    } catch (error) {
+      console.error("Error saving design:", error);
+      const message = error instanceof Error ? error.message : String(error);
+      toast({ title: "Save Failed", description: `Could not save design. ${message}`, variant: "destructive" });
     } finally {
-        setIsLoadingDesigns(false);
+      if (!isAutoSave) setIsSavingDesign(false);
     }
-  }, [currentUser, toast, currentDesignId, handleSetDiagramChanged]);
+  }, [currentUser, currentDesignName, currentDesignId, canvasRef, toast, fetchUserDesigns, handleSetDiagramChanged]);
 
+  const handleDeleteDesign = async (designId: string) => {
+    if (!currentUser) return;
+    try {
+      await deleteDoc(doc(db, 'designs', designId));
+      toast({ title: "Design Deleted", description: "The design was successfully deleted." });
 
-  const handleOpenNewDesignDialog = useCallback((promptForName = false) => {
-    setNewDesignNameInput('');
-    if (!currentUser) {
-        toast({
-            title: "Login Required",
-            description: "Please log in to create and save new designs.",
-            variant: "destructive"
-        });
-        return;
+      if (designId === currentDesignId) {
+        handleNewDesign("Untitled Design");
+      }
+      fetchUserDesigns();
+    } catch (error) {
+       toast({ title: "Delete Failed", description: "Could not delete the design.", variant: "destructive" });
     }
-    if (promptForName) {
-        setIsNewDesignDialogOpen(true);
-    } else {
-        const newId = crypto.randomUUID();
-        setCurrentDesignId(newId);
-        setCurrentDesignName("Untitled Design");
-        setCanvasLoadedDesignId(newId);
-        localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, newId);
-        localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, "Untitled Design");
-        if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
+  };
+  
+  const loadTemplate = (nodes: Node<NodeData>[], edges: Edge[], name: string) => {
+    if (canvasRef.current) {
+        canvasRef.current.loadTemplate(nodes, edges);
         setSelectedNode(null);
-        setAiFeedback(null);
         setChatMessages([]);
-        handleSetDiagramChanged(false);
-    }
-  },[currentUser, toast, handleSetDiagramChanged]);
-
-
-  useEffect(() => {
-    const initializeAppForUser = async () => {
-      if (!currentUser) { 
-        setCurrentDesignId(null);
-        setCurrentDesignName(null);
+        const newName = `${name} (Unsaved)`;
+        setCurrentDesignName(newName);
+        setCurrentDesignId(null); 
         setCanvasLoadedDesignId(null);
-        setUserDesigns([]);
-        if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
-        setAiFeedback(null);
-        setChatMessages([]);
-        setSelectedNode(null);
-        setIsWelcomeBackDialogOpen(false);
-        setIsMyDesignsDialogOpen(false);
-        setInitialDialogFlowPending(false);
-        handleSetDiagramChanged(false);
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-        return;
-      }
-
-      await fetchUserDesigns(); 
-
-      const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-      const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-      
-      if (storedActiveDesignId && storedActiveDesignName) {
-        console.log("Found active design in localStorage:", storedActiveDesignId, storedActiveDesignName);
-        setCurrentDesignId(storedActiveDesignId); 
-        setCurrentDesignName(storedActiveDesignName);
-        setInitialDialogFlowPending(false); 
-        
-        if (canvasRef.current) {
-          const loaded = await handleLoadDesign(storedActiveDesignId, storedActiveDesignName);
-          if(!loaded) { 
-             localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-             localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-             setCurrentDesignId(null);
-             setCurrentDesignName(null);
-             setCanvasLoadedDesignId(null);
-             setInitialDialogFlowPending(true); 
-          }
-        } else {
-            console.log("initializeAppForUser: Canvas not ready, sync effect will handle loading", storedActiveDesignId);
-        }
-
-      } else {
-        console.log("No active design in localStorage.");
-         if (!currentDesignId && canvasRef.current) { 
-             console.log("No currentDesignId and no localStorage design, loading default notes.");
-             canvasRef.current.loadTemplate(createDefaultNotes(), []);
-             setCanvasLoadedDesignId(null); 
-             handleSetDiagramChanged(false);
-        }
-        setInitialDialogFlowPending(true); 
-      }
-    };
-
-    if (isClient) {
-      initializeAppForUser();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, isClient]); 
-
-
-  useEffect(() => {
-    const syncCanvas = async () => {
-      if (currentDesignId && currentDesignName && canvasRef.current && canvasLoadedDesignId !== currentDesignId && !isCanvasSyncing) {
-        console.log(`Canvas Sync: Attempting to load ${currentDesignId} ('${currentDesignName}') to canvas. Current canvas loaded: ${canvasLoadedDesignId}`);
-        setIsCanvasSyncing(true);
-        const loadedSuccessfully = await handleLoadDesign(currentDesignId, currentDesignName);
-        if (!loadedSuccessfully) {
-          console.error(`Canvas Sync: Failed to load ${currentDesignId}. Clearing from localStorage and active context.`);
-          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-          setCurrentDesignId(null);
-          setCurrentDesignName(null);
-          setCanvasLoadedDesignId(null);
-          setInitialDialogFlowPending(true); 
-          if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
-        } else {
-             console.log(`Canvas Sync: handleLoadDesign for ${currentDesignId} completed.`);
-        }
-        setIsCanvasSyncing(false);
-      }
-    };
-    const timer = setTimeout(syncCanvas, 100); 
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentDesignId, currentDesignName, canvasLoadedDesignId]); 
-
-
-  useEffect(() => {
-    if (currentUser && initialDialogFlowPending && !isLoadingDesigns && currentDesignId === null) {
-      if (userDesigns.length > 0) {
-        console.log("Dialog Effect: Showing Welcome Back Dialog");
-        setIsWelcomeBackDialogOpen(true);
-      } else {
-        console.log("Dialog Effect: No designs, showing New Design Dialog to name first design");
-        handleOpenNewDesignDialog(true);
-      }
-      setInitialDialogFlowPending(false); 
-    }
-  }, [currentUser, initialDialogFlowPending, isLoadingDesigns, userDesigns, currentDesignId, handleOpenNewDesignDialog]);
-
-
-  const onDragStart = (event: React.DragEvent, component: ComponentConfig, color: string, borderColor: string) => {
-    const nodeData = { 
-        name: component.name, 
-        iconName: component.iconName, 
-        properties: component.initialProperties || {},
-        color: color,
-        borderColor: borderColor,
-    };
-    event.dataTransfer.setData('application/reactflow', JSON.stringify(nodeData));
-    event.dataTransfer.effectAllowed = 'move';
-  };
-
-  const loadTemplate = (nodes: Node<NodeData>[], edges: Edge[], templateName: string = "Loaded Template") => {
-    if (canvasRef.current) {
-      canvasRef.current.loadTemplate(nodes, edges);
-      setSelectedNode(null);
-      setAiFeedback(null);
-      setChatMessages([]);
-
-      setCurrentDesignId(null); 
-      setCurrentDesignName(`${templateName} (Unsaved)`);
-      setCanvasLoadedDesignId(null); 
-      localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-      localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-      handleSetDiagramChanged(false); 
-
-
-       toast({
-        title: "Template Loaded",
-        description: `"${templateName}" loaded. Save it to keep changes.`,
-        duration: 3000,
-      });
+        handleSetDiagramChanged(false);
+        toast({
+          title: "Template Loaded!",
+          description: `You are now working on a copy of the "${name}" template.`,
+        });
     }
   };
 
-  const handleNewDesignButtonClick = () => {
-    if (!currentUser) {
-      toast({ title: "Login Required", description: "Please log in to create a new design.", variant: "destructive" });
-      return;
-    }
-    setIsWelcomeBackDialogOpen(false);
-    setIsMyDesignsDialogOpen(false);
-    handleOpenNewDesignDialog(true);
-  };
-
-
-  const confirmNewDesign = () => {
-    const name = newDesignNameInput.trim() || 'Untitled Design';
-    const newId = crypto.randomUUID();
-
-    setCurrentDesignId(newId);
-    setCurrentDesignName(name);
-    setCanvasLoadedDesignId(newId); 
-
-    localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, newId);
-    localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, name);
-
-    if (canvasRef.current) {
-      const defaultNodes = createDefaultNotes();
-      canvasRef.current.loadTemplate(defaultNodes, []);
-    }
-    setSelectedNode(null);
-    setAiFeedback(null);
-    setChatMessages([]);
-    setIsNewDesignDialogOpen(false);
-    setIsWelcomeBackDialogOpen(false);
-    setIsMyDesignsDialogOpen(false);
-    setNewDesignNameInput('');
-    handleSetDiagramChanged(false); 
-    toast({
-      title: "New Design Ready",
-      description: `Design "${name}" has been created. Save it to keep your work.`,
-      duration: 3000,
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({ title: "Copied to clipboard!" });
+    }, (err) => {
+      toast({ title: "Failed to copy", description: err.message, variant: "destructive" });
     });
   };
 
-  const handleSaveDesign = async () => {
-    if (!currentUser) {
-      toast({ title: "Login Required", description: "Please log in to save your design.", variant: "destructive" });
-      return;
-    }
-    if (!currentDesignId || !currentDesignName || currentDesignName.endsWith("(Unsaved)")) {
-       toast({ title: "Cannot Save", description: "Please name your design first or ensure it's not an unsaved template.", variant: "destructive" });
-       handleOpenNewDesignDialog(true);
-      return;
-    }
-    if (!canvasRef.current) {
-      toast({ title: "Error", description: "Canvas not available.", variant: "destructive" });
-      return;
-    }
-
-    setIsSavingDesign(true);
-    console.log("Manual Save: Initiated for", currentDesignId);
-    const diagramJson = canvasRef.current.getDiagramJson();
-    const designData = {
-      userId: currentUser.uid,
-      designName: currentDesignName,
-      diagramJson: diagramJson,
-      updatedAt: serverTimestamp(),
-    };
-
-    try {
-      const designRef = doc(db, 'designs', currentDesignId);
-      await setDoc(designRef, designData, { merge: true });
-
-      toast({ title: "Design Saved!", description: `"${currentDesignName}" has been saved successfully.` });
-      handleSetDiagramChanged(false);
-      setCanvasLoadedDesignId(currentDesignId); 
-      fetchUserDesigns();
-    } catch (error) {
-      console.error("Error saving design:", error);
-      toast({ title: "Save Failed", description: `Could not save design. ${error instanceof Error ? error.message : String(error)}`, variant: "destructive" });
-    } finally {
-      setIsSavingDesign(false);
-      console.log("Manual Save: Completed for", currentDesignId);
+  // === DIALOG HANDLERS ===
+  const handleNewDesignButtonClick = () => {
+    if (diagramChangedSinceLastSave) {
+        // Here you might want a confirmation dialog
+        handleOpenNewDesignDialog(true);
+    } else {
+        handleOpenNewDesignDialog(true);
     }
   };
 
+  const handleOpenNewDesignDialog = (isOpen: boolean) => {
+    setNewDesignNameInput('');
+    setIsNewDesignDialogOpen(isOpen);
+  };
+  
+  const confirmNewDesign = () => {
+    if (newDesignNameInput.trim()) {
+      handleNewDesign(newDesignNameInput.trim());
+      setIsNewDesignDialogOpen(false);
+    }
+  };
 
+  // === COMPONENT & CANVAS HANDLERS ===
   const handleNodeSelect = useCallback((node: Node<NodeData> | null) => {
     setSelectedNode(node);
   }, []);
@@ -554,11 +384,24 @@ export function ArchitechApp() {
       }) : null);
     }
   };
+
+  const onDragStart = (event: React.DragEvent, component: ComponentConfig, color: string, borderColor: string) => {
+    const nodeData = { 
+        name: component.name, 
+        iconName: component.iconName, 
+        properties: component.initialProperties || {},
+        color: color,
+        borderColor: borderColor,
+    };
+    event.dataTransfer.setData('application/reactflow', JSON.stringify(nodeData));
+    event.dataTransfer.effectAllowed = 'move';
+  };
   
   const selectedComponentConfig = selectedNode 
     ? designComponents.find(c => c.name === selectedNode.data.label || c.iconName === selectedNode.data.iconName)
     : undefined;
 
+  // === AI & EXTERNAL TOOL HANDLERS ===
 
   const extractContextFromDiagram = () => {
     let designDiagramJson = JSON.stringify({ nodes: [], edges: [] });
@@ -584,22 +427,8 @@ export function ArchitechApp() {
           }
         }
       });
-      extractedRequirements = requirementsNotes.join("\n\n---\n\n");
-      extractedBoteCalculations = boteNotes.join("\n\n---\n\n");
-
-      if (!extractedRequirements && diagram.nodes.some(n => n.data.label === "Info Note")) {
-        const allNotesContent = diagram.nodes
-          .filter(node => {
-            const title = (node.data.properties?.title || "").toLowerCase();
-            return node.data.label === "Info Note" &&
-                   node.data.properties?.content &&
-                   !title.includes("bote") &&
-                   !title.includes("calculation");
-          })
-          .map(node => node.data.properties.content as string)
-          .join("\n\n---\n\n");
-        if(allNotesContent) extractedRequirements = allNotesContent;
-      }
+      extractedRequirements = requirementsNotes.join("\n\n");
+      extractedBoteCalculations = boteNotes.join("\n\n");
        if (!extractedRequirements) {
          extractedRequirements = "No feature requirements provided via Info Notes on the canvas.";
        }
@@ -637,12 +466,12 @@ export function ArchitechApp() {
         duration: 5000,
       });
     } catch (error) {
-      console.error("Error evaluating system design:", error);
+      console.error("Error evaluating design:", error);
+      const message = error instanceof Error ? error.message : "An unknown error occurred.";
       toast({
-        title: "Evaluation Error",
-        description: `Failed to generate AI feedback. ${error instanceof Error ? error.message : "Check console for details."}`,
+        title: "Evaluation Failed",
+        description: `The AI could not evaluate your design. ${message}`,
         variant: "destructive",
-        duration: 5000,
       });
     } finally {
       setIsLoadingEvaluation(false);
@@ -660,7 +489,6 @@ export function ArchitechApp() {
         setIsEvaluationDialogOpen(true);
     }
   };
-
 
   const handleGenerateDesign = async () => {
     setIsGeneratingDesign(true);
@@ -760,226 +588,149 @@ export function ArchitechApp() {
       setIsBotLoadingResponse(false);
     }
   };
+  
+  const handleExportToTerraformClick = () => {
+    setIsTerraformExportDialogOpen(true);
+  };
+
+  const handleGenerateTerraformSubmit = async () => {
+    if (!selectedTerraformProvider || !canvasRef.current) return;
+    setIsGeneratingTerraform(true);
+    setTerraformExportResult(null);
+    setIsTerraformResultModalOpen(true);
+
+    try {
+        const diagramJson = canvasRef.current.getDiagramJson();
+        const input: GenerateTerraformInput = {
+            diagramJson,
+            targetProvider: selectedTerraformProvider,
+        };
+        const result = await generateTerraform(input);
+        setTerraformExportResult(result);
+    } catch (error) {
+        console.error("Error generating Terraform:", error);
+        toast({ title: "Terraform Generation Failed", variant: "destructive" });
+        setIsTerraformResultModalOpen(false);
+    } finally {
+        setIsGeneratingTerraform(false);
+        setIsTerraformExportDialogOpen(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
   };
 
-  useEffect(() => {
-    console.log("Autosave Effect: diagramChanged:", diagramChangedSinceLastSave, "currentUser:", !!currentUser, "currentDesignId:", currentDesignId, "name:", currentDesignName, "isSaving:", isSavingDesign);
+  // === LIFECYCLE & SYNC EFFECTS ===
 
+  useEffect(() => {
+    const initializeAppForUser = async () => {
+      if (!currentUser) { 
+        setCurrentDesignId(null);
+        setCurrentDesignName(null);
+        setCanvasLoadedDesignId(null);
+        setUserDesigns([]);
+        if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
+        setAiFeedback(null);
+        setChatMessages([]);
+        setSelectedNode(null);
+        setIsWelcomeBackDialogOpen(false);
+        setIsMyDesignsDialogOpen(false);
+        setInitialDialogFlowPending(false);
+        handleSetDiagramChanged(false);
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+        return;
+      }
+
+      await fetchUserDesigns(); 
+
+      const storedActiveDesignId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+      const storedActiveDesignName = localStorage.getItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+      
+      if (storedActiveDesignId && storedActiveDesignName) {
+        setCurrentDesignId(storedActiveDesignId); 
+        setCurrentDesignName(storedActiveDesignName);
+        setInitialDialogFlowPending(false); 
+        
+        if (canvasRef.current) {
+          const loaded = await handleLoadDesign(storedActiveDesignId, storedActiveDesignName);
+          if(!loaded) { 
+             localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+             localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+             setCurrentDesignId(null);
+             setCurrentDesignName(null);
+             setCanvasLoadedDesignId(null);
+             setInitialDialogFlowPending(true); 
+          }
+        }
+      } else {
+         if (!currentDesignId && canvasRef.current) { 
+             canvasRef.current.loadTemplate(createDefaultNotes(), []);
+             setCanvasLoadedDesignId(null); 
+             handleSetDiagramChanged(false);
+        }
+        setInitialDialogFlowPending(true); 
+      }
+    };
+
+    if (isClient) {
+      initializeAppForUser();
+    }
+  }, [currentUser, isClient, fetchUserDesigns, handleLoadDesign, handleSetDiagramChanged]);
+
+  useEffect(() => {
+    const syncCanvas = async () => {
+      if (currentDesignId && currentDesignName && canvasRef.current && canvasLoadedDesignId !== currentDesignId && !isCanvasSyncing) {
+        setIsCanvasSyncing(true);
+        const loadedSuccessfully = await handleLoadDesign(currentDesignId, currentDesignName);
+        if (!loadedSuccessfully) {
+          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+          setCurrentDesignId(null);
+          setCurrentDesignName(null);
+          setCanvasLoadedDesignId(null);
+          setInitialDialogFlowPending(true); 
+          if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
+        }
+        setIsCanvasSyncing(false);
+      }
+    };
+    const timer = setTimeout(syncCanvas, 100); 
+    return () => clearTimeout(timer);
+  }, [currentDesignId, currentDesignName, canvasLoadedDesignId, isCanvasSyncing, handleLoadDesign]);
+
+  useEffect(() => {
+    if (currentUser && initialDialogFlowPending && !isLoadingDesigns && currentDesignId === null) {
+      if (userDesigns.length > 0) {
+        setIsWelcomeBackDialogOpen(true);
+      } else {
+        handleOpenNewDesignDialog(true);
+      }
+      setInitialDialogFlowPending(false); 
+    }
+  }, [currentUser, initialDialogFlowPending, isLoadingDesigns, userDesigns, currentDesignId]);
+
+  useEffect(() => {
     if (autosaveTimer.current) {
       clearTimeout(autosaveTimer.current);
-      console.log("Autosave Effect: Cleared previous timer");
     }
-
-    if (
-      diagramChangedSinceLastSave &&
-      currentUser &&
-      currentDesignId &&
-      currentDesignName &&
-      !currentDesignName.endsWith("(Unsaved)") &&
-      canvasRef.current &&
-      !isSavingDesign
-    ) {
-      console.log("Autosave Effect: Conditions met, setting timer for", AUTOSAVE_DELAY_MS, "ms for design", currentDesignId);
-      autosaveTimer.current = setTimeout(async () => {
-        console.log("Autosave Timer: Fired for design", currentDesignId);
-        if (!canvasRef.current) {
-            console.warn("Autosave Timer: Canvas ref not available at time of save.");
-            return;
-        }
-        const diagramJson = canvasRef.current.getDiagramJson();
-        const designData = {
-          userId: currentUser.uid,
-          designName: currentDesignName,
-          diagramJson: diagramJson,
-          updatedAt: serverTimestamp(),
-        };
-
-        try {
-          const designRef = doc(db, 'designs', currentDesignId);
-          await setDoc(designRef, designData, { merge: true });
-          console.log(`Autosave: Successfully saved ${currentDesignId}`);
-          handleSetDiagramChanged(false);
-          setCanvasLoadedDesignId(currentDesignId); 
-        } catch (error) {
-          console.error("Autosave: Error saving design:", currentDesignId, error);
-          toast({
-            title: "Autosave Failed",
-            description: `Could not automatically save your design "${currentDesignName}". Please try saving manually. ${error instanceof Error ? error.message : String(error)}`,
-            variant: "destructive",
-          });
-        }
+    if (diagramChangedSinceLastSave && currentUser && currentDesignId && !isSavingDesign) {
+      autosaveTimer.current = setTimeout(() => {
+        handleSaveDesign(true);
       }, AUTOSAVE_DELAY_MS);
-    } else if (diagramChangedSinceLastSave) {
-        console.log("Autosave Effect: Conditions NOT met, but diagramChanged is true. State:", {
-            currentUser: !!currentUser,
-            currentDesignId,
-            currentDesignName,
-            isUnsavedTemplate: currentDesignName?.endsWith("(Unsaved)"),
-            canvasRefCurrent: !!canvasRef.current,
-            isSavingDesign
-        });
     }
-
     return () => {
       if (autosaveTimer.current) {
         clearTimeout(autosaveTimer.current);
-        console.log("Autosave Effect: Cleanup - Cleared timer for design", currentDesignId);
       }
     };
-  }, [diagramChangedSinceLastSave, currentUser, currentDesignId, currentDesignName, toast, isSavingDesign, handleSetDiagramChanged]);
+  }, [diagramChangedSinceLastSave, currentUser, currentDesignId, isSavingDesign, handleSaveDesign]);
 
-  const handleExportDesign = () => {
-    if (!canvasRef.current) {
-      toast({ title: "Error", description: "Canvas not available for export.", variant: "destructive" });
-      return;
-    }
-    const diagramJson = canvasRef.current.getDiagramJson();
-    const blob = new Blob([diagramJson], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const fileName = currentDesignName ? `${currentDesignName.replace(/\s+/g, '_').replace(/\(Unsaved\)/i, '').replace(/[^a-z0-9_.-]/gi, '') || 'design'}.json` : 'architech-design.json';
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast({ title: "Exported", description: `Design exported as ${fileName}` });
-  };
-
-  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result;
-        if (typeof content !== 'string') {
-          throw new Error("Failed to read file content.");
-        }
-        const parsedData = JSON.parse(content);
-
-        if (!parsedData || typeof parsedData !== 'object' || !Array.isArray(parsedData.nodes) || !Array.isArray(parsedData.edges)) {
-          throw new Error("Invalid JSON format. 'nodes' and 'edges' arrays are required.");
-        }
-        
-
-        if (canvasRef.current) {
-          canvasRef.current.loadTemplate(parsedData.nodes, parsedData.edges);
-          
-          const newName = `Imported - ${file.name.replace(/\.json$/i, '')} (Unsaved)`;
-          setCurrentDesignName(newName);
-          setCurrentDesignId(null); 
-          setCanvasLoadedDesignId(null); 
-          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-          handleSetDiagramChanged(false); 
-          setSelectedNode(null);
-          setAiFeedback(null);
-          setChatMessages([]);
-
-          toast({ title: "Import Successful", description: `"${file.name}" loaded. Save to keep changes.` });
-        }
-      } catch (error) {
-        console.error("Error importing design:", error);
-        toast({
-          title: "Import Failed",
-          description: `Could not import design. ${error instanceof Error ? error.message : "Invalid file format."}`,
-          variant: "destructive",
-        });
-      } finally {
-        
-        if (importFileRef.current) {
-          importFileRef.current.value = "";
-        }
-      }
-    };
-    reader.onerror = () => {
-      toast({ title: "File Read Error", description: "Could not read the selected file.", variant: "destructive" });
-       if (importFileRef.current) {
-          importFileRef.current.value = "";
-        }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleExportToTerraformClick = () => {
-    if (!currentUser) {
-      toast({ title: "Login Required", description: "Please log in to export to Terraform.", variant: "destructive" });
-      return;
-    }
-    if (!canvasRef.current) {
-      toast({ title: "Error", description: "Design canvas is not available.", variant: "destructive" });
-      return;
-    }
-    setIsTerraformExportDialogOpen(true);
-  };
-
-  const handleGenerateTerraformSubmit = async () => {
-    if (!selectedTerraformProvider) {
-      toast({ title: "Provider Required", description: "Please select a cloud provider.", variant: "destructive" });
-      return;
-    }
-    if (!canvasRef.current) {
-      toast({ title: "Error", description: "Design canvas is not available.", variant: "destructive" });
-      return;
-    }
-
-    setIsTerraformExportDialogOpen(false);
-    setIsGeneratingTerraform(true);
-    setTerraformExportResult(null);
-
-    try {
-      const diagramJson = canvasRef.current.getDiagramJson();
-      const input: GenerateTerraformInput = {
-        diagramJson,
-        targetProvider: selectedTerraformProvider,
-        // additionalRequirements: "Optional: user can add hints here in future version"
-      };
-
-      const result = await generateTerraform(input);
-      setTerraformExportResult(result);
-      setIsTerraformResultModalOpen(true);
-      toast({ title: "Terraform HCL Generated", description: "Review the generated code. It's a starting point." });
-    } catch (error) {
-      console.error("Error generating Terraform:", error);
-      toast({
-        title: "Terraform Generation Error",
-        description: `Failed to generate Terraform HCL. ${error instanceof Error ? error.message : "An unknown error occurred."}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingTerraform(false);
-      setSelectedTerraformProvider(''); // Reset for next time
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast({ title: "Copied!", description: "Terraform HCL copied to clipboard." });
-    }).catch(err => {
-      toast({ title: "Copy Failed", description: "Could not copy to clipboard.", variant: "destructive" });
-      console.error('Failed to copy text: ', err);
-    });
-  };
-
-  if (!isClient) {
+  // === RENDER LOGIC ===
+  if (!isClient || (authLoading && !currentUser)) {
     return (
-        <div className="flex h-screen items-center justify-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        </div>
-    );
-  }
-
-  if (authLoading && !currentUser) {
-    return (
-      <div className="flex min-h-screen w-full items-center justify-center">
+      <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
@@ -989,7 +740,6 @@ export function ArchitechApp() {
     return <AuthSection />;
   }
 
-
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex flex-col h-screen">
@@ -998,13 +748,13 @@ export function ArchitechApp() {
             currentUser={currentUser}
             isSavingDesign={isSavingDesign}
             onMyDesignsClick={() => {
-            fetchUserDesigns();
-            setIsMyDesignsDialogOpen(true);
-            setIsWelcomeBackDialogOpen(false);
+              fetchUserDesigns();
+              setIsMyDesignsDialogOpen(true);
+              setIsWelcomeBackDialogOpen(false);
             }}
-            onSaveDesign={handleSaveDesign}
-            canSave={!!currentDesignId && !(currentDesignName || "").endsWith("(Unsaved)")}
-            onExportDesign={handleExportDesign}
+            onSaveDesign={() => handleSaveDesign(false)}
+            canSave={!!currentDesignId && !!currentDesignName}
+            onExportDesign={() => {}} // Placeholder
             onImportDesignClick={() => importFileRef.current?.click()}
             onExportToTerraformClick={handleExportToTerraformClick}
             onNewDesignClick={handleNewDesignButtonClick}
@@ -1014,291 +764,226 @@ export function ArchitechApp() {
             setTheme={setTheme}
         />
         <div className="flex flex-1 min-h-0">
-            <AppSidebar
+          <AppSidebar
             aiFeedback={aiFeedback}
             groupedDesignComponents={groupedDesignComponents}
             onDragStart={onDragStart}
-            />
-
-            <SidebarInset className="p-0 md:p-0 md:m-0 md:rounded-none flex flex-col">
+          />
+          <SidebarInset className="p-0 m-0 rounded-none flex flex-col">
             <ReactFlowProvider>
-                <div className="flex flex-1 min-h-0">
+              <div className="flex flex-1 min-h-0">
                 <main className="flex-1 overflow-auto p-0 flex flex-col">
-                    <DesignCanvas
+                  <DesignCanvas
                     ref={canvasRef}
                     className="flex-1"
                     onNodeSelect={handleNodeSelect}
-                    onStructuralChange={() => {
-                        console.log("ArchitechApp: onStructuralChange called from DesignCanvas");
-                        handleSetDiagramChanged(true);
-                    }}
+                    onStructuralChange={() => handleSetDiagramChanged(true)}
                     onEvaluateClick={handleNewEvaluation}
                     onSeeEvaluationClick={handleOpenEvaluationDialog}
                     isLoadingEvaluation={isLoadingEvaluation}
                     aiFeedback={aiFeedback}
-                    />
+                  />
                 </main>
                 {selectedNode && selectedComponentConfig && (
-                    <aside className="w-80 border-l border-border bg-card hidden md:block">
-                    <ScrollArea className="h-full">
-                        <PropertiesPanel
-                        key={selectedNode.id}
-                        selectedNode={selectedNode}
-                        componentConfig={selectedComponentConfig}
-                        onUpdateNode={handleUpdateNodeProperties}
-                        onClose={() => setSelectedNode(null)}
-                        />
-                    </ScrollArea>
-                    </aside>
+                  <aside className="w-80 border-l border-border bg-card hidden md:block">
+                    <PropertiesPanel
+                      key={selectedNode.id}
+                      selectedNode={selectedNode}
+                      componentConfig={selectedComponentConfig}
+                      onUpdateNode={handleUpdateNodeProperties}
+                      onClose={() => setSelectedNode(null)}
+                    />
+                  </aside>
                 )}
                 {selectedNode && !selectedComponentConfig && (
-                    <aside className="w-80 border-l border-border bg-card hidden md:block p-4">
+                  <aside className="w-80 border-l border-border bg-card hidden md:block p-4">
                     <Card>
-                        <CardHeader>
-                        <CardTitle>Component Error</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                        <p className="text-sm text-destructive">Could not find configuration for the selected component: "{selectedNode.data.label}".</p>
-                        <p className="text-xs text-muted-foreground mt-2">This might happen if the component's label was manually changed or if its configuration is missing.</p>
-                        </CardContent>
+                      <CardHeader><CardTitle>Component Error</CardTitle></CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-destructive">Could not find configuration for: "{selectedNode.data.label}".</p>
+                      </CardContent>
                     </Card>
-                    </aside>
+                  </aside>
                 )}
-                </div>
+              </div>
             </ReactFlowProvider>
-            </SidebarInset>
+          </SidebarInset>
         </div>
 
-
+        {/* Action Buttons & Dialogs */}
         <Button
-            variant="outline"
-            size="icon"
-            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary text-primary-foreground hover:bg-primary/90"
-            onClick={() => setIsChatOpen(prev => !prev)}
-            aria-label="Toggle Interview Bot"
+          variant="outline"
+          size="icon"
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50 bg-primary text-primary-foreground hover:bg-primary/90"
+          onClick={() => setIsChatOpen(prev => !prev)}
+          aria-label="Toggle Interview Bot"
         >
-            <MessageSquarePlus className="h-7 w-7" />
+          <MessageSquarePlus className="h-7 w-7" />
         </Button>
 
         <ChatBotWindow
-            isOpen={isChatOpen}
-            onClose={() => setIsChatOpen(false)}
-            messages={chatMessages}
-            onSendMessage={handleSendMessageToBot}
-            isLoadingAiResponse={isBotLoadingResponse}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          messages={chatMessages}
+          onSendMessage={handleSendMessageToBot}
+          isLoadingAiResponse={isBotLoadingResponse}
         />
 
         <WelcomeBackDialog
-            isOpen={isWelcomeBackDialogOpen || isMyDesignsDialogOpen}
-            onClose={() => {
-                setIsWelcomeBackDialogOpen(false);
-                setIsMyDesignsDialogOpen(false);
-                if (!currentDesignId && canvasRef.current && !isMyDesignsDialogOpen) { 
-                    canvasRef.current.loadTemplate(createDefaultNotes(), []);
-                    setCanvasLoadedDesignId(null);
-                    setCurrentDesignId(null);
-                    setCurrentDesignName(null);
-                    handleSetDiagramChanged(false);
-                }
-            }}
-            dialogType={isMyDesignsDialogOpen ? "myDesigns" : "welcomeBack"}
-            designs={userDesigns}
-            onLoadDesignClick={(designId, designName) => {
+          isOpen={isWelcomeBackDialogOpen || isMyDesignsDialogOpen}
+          onClose={() => {
+            setIsWelcomeBackDialogOpen(false);
+            setIsMyDesignsDialogOpen(false);
+            if (!currentDesignId && canvasRef.current && !isMyDesignsDialogOpen) { 
+                handleNewDesign("Untitled Design");
+            }
+          }}
+          dialogType={isMyDesignsDialogOpen ? "myDesigns" : "welcomeBack"}
+          designs={userDesigns}
+          onLoadDesignClick={(designId, designName) => {
             handleLoadDesign(designId, designName);
             setIsWelcomeBackDialogOpen(false);
             setIsMyDesignsDialogOpen(false);
-            }}
-            onCreateNewClick={() => {
+          }}
+          onCreateNewClick={() => {
             setIsWelcomeBackDialogOpen(false);
             setIsMyDesignsDialogOpen(false);
             handleOpenNewDesignDialog(true);
-            }}
+          }}
+          onDeleteDesign={handleDeleteDesign}
         />
         
         <TemplateBrowserDialog
-            isOpen={isTemplateBrowserOpen}
-            onClose={() => setIsTemplateBrowserOpen(false)}
-            templates={initialTemplates}
-            onLoadTemplate={(nodes, edges, name) => {
-                loadTemplate(nodes, edges, name);
-                setIsTemplateBrowserOpen(false);
-            }}
+          isOpen={isTemplateBrowserOpen}
+          onClose={() => setIsTemplateBrowserOpen(false)}
+          templates={initialTemplates}
+          onLoadTemplate={(nodes, edges, name) => {
+            loadTemplate(nodes, edges, name);
+            setIsTemplateBrowserOpen(false);
+          }}
         />
 
         <EvaluationResultDialog 
-            isOpen={isEvaluationDialogOpen}
-            onClose={() => setIsEvaluationDialogOpen(false)}
-            feedback={aiFeedback}
+          isOpen={isEvaluationDialogOpen}
+          onClose={() => setIsEvaluationDialogOpen(false)}
+          feedback={aiFeedback}
         />
 
         {isNewDesignDialogOpen && (
-            <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
-                if (!isOpen && !currentDesignId && currentUser && canvasRef.current) {
-                    if(!isWelcomeBackDialogOpen && !isMyDesignsDialogOpen) {
-                        canvasRef.current.loadTemplate(createDefaultNotes(), []);
-                        setCanvasLoadedDesignId(null);
-                        setCurrentDesignId(null);
-                        setCurrentDesignName(null);
-                        handleSetDiagramChanged(false);
-                    }
-                }
-                if (!isOpen) setNewDesignNameInput('');
-                setIsNewDesignDialogOpen(isOpen);
-            }}>
+          <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
+            if (!isOpen && !currentDesignId && currentUser && canvasRef.current) {
+              if(!isWelcomeBackDialogOpen && !isMyDesignsDialogOpen) {
+                handleNewDesign("Untitled Design");
+              }
+            }
+            if (!isOpen) setNewDesignNameInput('');
+            setIsNewDesignDialogOpen(isOpen);
+          }}>
             <DialogContent>
-                <DialogHeader>
+              <DialogHeader>
                 <DialogTitle>Create New Design</DialogTitle>
-                </DialogHeader>
-                <div className="py-4 space-y-2">
-                <Label htmlFor="newDesignName" className="text-sm font-medium">
-                    Design Name
-                </Label>
+              </DialogHeader>
+              <div className="py-4 space-y-2">
+                <Label htmlFor="newDesignName" className="text-sm font-medium">Design Name</Label>
                 <Input
-                    id="newDesignName"
-                    value={newDesignNameInput}
-                    onChange={(e) => setNewDesignNameInput(e.target.value)}
-                    placeholder="Enter a name for your system design"
-                    onKeyDown={(e) => e.key === 'Enter' && newDesignNameInput.trim() && confirmNewDesign()}
+                  id="newDesignName"
+                  value={newDesignNameInput}
+                  onChange={(e) => setNewDesignNameInput(e.target.value)}
+                  placeholder="Enter a name for your system design"
+                  onKeyDown={(e) => e.key === 'Enter' && newDesignNameInput.trim() && confirmNewDesign()}
                 />
-                </div>
-                <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="outline">
-                    Cancel
-                    </Button>
-                </DialogClose>
-                <Button type="button" onClick={confirmNewDesign} disabled={!newDesignNameInput.trim()}>
-                    Create Design
-                </Button>
-                </DialogFooter>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                <Button type="button" onClick={confirmNewDesign} disabled={!newDesignNameInput.trim()}>Create Design</Button>
+              </DialogFooter>
             </DialogContent>
-            </Dialog>
+          </Dialog>
         )}
 
-        {/* Terraform Export Provider Selection Dialog */}
         <Dialog open={isTerraformExportDialogOpen} onOpenChange={setIsTerraformExportDialogOpen}>
-            <DialogContent>
+          <DialogContent>
             <DialogHeader>
-                <DialogTitle>Export to Terraform (Experimental)</DialogTitle>
-                <DialogDescription>
-                Select a target cloud provider. The generated HCL will be a starting point and requires review.
-                </DialogDescription>
+              <DialogTitle>Export to Terraform (Experimental)</DialogTitle>
+              <DialogDescription>Select a target cloud provider.</DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
-                <div>
-                <Label htmlFor="terraformProvider" className="text-sm font-medium">
-                    Cloud Provider
-                </Label>
+              <div>
+                <Label htmlFor="terraformProvider" className="text-sm font-medium">Cloud Provider</Label>
                 <Select
-                    value={selectedTerraformProvider}
-                    onValueChange={(value) => setSelectedTerraformProvider(value as 'AWS' | 'GCP' | 'Azure' | '')}
+                  value={selectedTerraformProvider}
+                  onValueChange={(value) => setSelectedTerraformProvider(value as 'AWS' | 'GCP' | 'Azure' | '')}
                 >
-                    <SelectTrigger id="terraformProvider" className="mt-1">
-                    <SelectValue placeholder="Select a provider" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  <SelectTrigger id="terraformProvider" className="mt-1"><SelectValue placeholder="Select a provider" /></SelectTrigger>
+                  <SelectContent>
                     <SelectItem value="AWS">Amazon Web Services (AWS)</SelectItem>
                     <SelectItem value="GCP">Google Cloud Platform (GCP)</SelectItem>
                     <SelectItem value="Azure">Microsoft Azure</SelectItem>
-                    </SelectContent>
+                  </SelectContent>
                 </Select>
-                </div>
+              </div>
             </div>
             <DialogFooter>
-                <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
-                </DialogClose>
-                <Button
-                type="button"
-                onClick={handleGenerateTerraformSubmit}
-                disabled={!selectedTerraformProvider || isGeneratingTerraform}
-                >
+              <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+              <Button type="button" onClick={handleGenerateTerraformSubmit} disabled={!selectedTerraformProvider || isGeneratingTerraform}>
                 {isGeneratingTerraform ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Generate HCL
-                </Button>
+              </Button>
             </DialogFooter>
-            </DialogContent>
+          </DialogContent>
         </Dialog>
 
-        {/* Terraform Result Modal */}
         <Dialog open={isTerraformResultModalOpen} onOpenChange={setIsTerraformResultModalOpen}>
-            <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
-                <DialogTitle>Generated Terraform HCL</DialogTitle>
-                <DialogDescription>
-                This is a skeleton HCL. Review and modify it carefully before use.
-                </DialogDescription>
+              <DialogTitle>Generated Terraform HCL</DialogTitle>
+              <DialogDescription>This is a skeleton HCL. Review and modify it carefully.</DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4 max-h-[70vh] flex flex-col">
-                {isGeneratingTerraform && (
-                    <div className="flex items-center justify-center p-8">
-                        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                    </div>
-                )}
-                {terraformExportResult && (
+              {isGeneratingTerraform ? (
+                <div className="flex items-center justify-center p-8"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
+              ) : terraformExportResult && (
                 <>
-                    {(terraformExportResult.warnings && terraformExportResult.warnings.length > 0) && (
+                  {terraformExportResult.warnings && terraformExportResult.warnings.length > 0 && (
                     <Card className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-900/10">
-                        <CardHeader className="pb-2 pt-3 px-4">
-                        <CardTitle className="text-base text-yellow-700 dark:text-yellow-300 flex items-center">
-                            <AlertTriangle className="h-5 w-5 mr-2" /> Warnings
-                        </CardTitle>
-                        </CardHeader>
-                        <CardContent className="px-4 pb-3 text-sm text-yellow-600 dark:text-yellow-400">
+                      <CardHeader className="pb-2 pt-3 px-4">
+                        <CardTitle className="text-base text-yellow-700 dark:text-yellow-300 flex items-center"><AlertTriangle className="h-5 w-5 mr-2" /> Warnings</CardTitle>
+                      </CardHeader>
+                      <CardContent className="px-4 pb-3 text-sm text-yellow-600 dark:text-yellow-400">
                         <ul className="list-disc pl-5 space-y-1">
-                            {terraformExportResult.warnings.map((warning, index) => (
-                            <li key={`warning-${index}`}>{warning}</li>
-                            ))}
+                          {terraformExportResult.warnings.map((w, i) => <li key={`w-${i}`}>{w}</li>)}
                         </ul>
-                        </CardContent>
+                      </CardContent>
                     </Card>
-                    )}
-
-                    <div className="flex-1 overflow-hidden flex flex-col">
-                    <Label htmlFor="terraformHclOutput" className="text-sm font-medium mb-1">
-                        Terraform Code:
-                    </Label>
-                    <ScrollArea className="flex-1 border rounded-md bg-muted/30">
-                        <Textarea
-                        id="terraformHclOutput"
-                        value={terraformExportResult.terraformHcl}
-                        readOnly
-                        className="h-full min-h-[200px] font-mono text-xs p-3 bg-transparent border-0 focus-visible:ring-0"
-                        rows={15}
-                        />
-                    </ScrollArea>
-                    </div>
-                    <Button
-                        onClick={() => copyToClipboard(terraformExportResult.terraformHcl)}
-                        variant="outline"
-                        className="mt-2 self-start"
-                    >
-                        <Copy className="mr-2 h-4 w-4" /> Copy HCL
-                    </Button>
-
-                    {(terraformExportResult.suggestions && terraformExportResult.suggestions.length > 0) && (
+                  )}
+                  <div className="flex-1 overflow-hidden flex flex-col">
+                    <Label htmlFor="terraformHclOutput" className="text-sm font-medium mb-1">Terraform Code:</Label>
+                    <Textarea
+                      id="terraformHclOutput"
+                      value={terraformExportResult.terraformHcl}
+                      readOnly
+                      className="h-full min-h-[200px] font-mono text-xs p-3 bg-muted/30 border-0 focus-visible:ring-0"
+                      rows={15}
+                    />
+                  </div>
+                  <Button onClick={() => copyToClipboard(terraformExportResult.terraformHcl)} variant="outline" className="mt-2 self-start"><Copy className="mr-2 h-4 w-4" /> Copy HCL</Button>
+                  {terraformExportResult.suggestions && terraformExportResult.suggestions.length > 0 && (
                     <Card className="border-blue-500/50 bg-blue-50 dark:bg-blue-900/10 mt-4">
-                        <CardHeader className="pb-2 pt-3 px-4">
-                        <CardTitle className="text-base text-blue-700 dark:text-blue-300">Suggestions</CardTitle>
-                        </CardHeader>
-                        <CardContent className="px-4 pb-3 text-sm text-blue-600 dark:text-blue-400">
+                      <CardHeader className="pb-2 pt-3 px-4"><CardTitle className="text-base text-blue-700 dark:text-blue-300">Suggestions</CardTitle></CardHeader>
+                      <CardContent className="px-4 pb-3 text-sm text-blue-600 dark:text-blue-400">
                         <ul className="list-disc pl-5 space-y-1">
-                            {terraformExportResult.suggestions.map((suggestion, index) => (
-                            <li key={`suggestion-${index}`}>{suggestion}</li>
-                            ))}
+                          {terraformExportResult.suggestions.map((s, i) => <li key={`s-${i}`}>{s}</li>)}
                         </ul>
-                        </CardContent>
+                      </CardContent>
                     </Card>
-                    )}
+                  )}
                 </>
-                )}
+              )}
             </div>
-            <DialogFooter>
-                <Button onClick={() => setIsTerraformResultModalOpen(false)}>Close</Button>
-            </DialogFooter>
-            </DialogContent>
+            <DialogFooter><Button onClick={() => setIsTerraformResultModalOpen(false)}>Close</Button></DialogFooter>
+          </DialogContent>
         </Dialog>
-        </div>
+      </div>
     </SidebarProvider>
   );
 }
