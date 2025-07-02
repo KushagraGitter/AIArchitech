@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { UserDesign } from './architech-app';
 import { formatDistanceToNow } from 'date-fns';
-import { FileText, PlusCircle, Hand, ListChecks } from 'lucide-react';
+import { FileText, PlusCircle, Hand, ListChecks, Trash2 } from 'lucide-react';
 
 interface WelcomeBackDialogProps {
   isOpen: boolean;
@@ -23,7 +23,8 @@ interface WelcomeBackDialogProps {
   designs: UserDesign[];
   onLoadDesignClick: (designId: string, designName: string) => void;
   onCreateNewClick: () => void;
-  dialogType?: "welcomeBack" | "myDesigns"; // New prop to differentiate dialog context
+  onDeleteDesign: (designId: string) => void;
+  dialogType?: "welcomeBack" | "myDesigns";
 }
 
 export function WelcomeBackDialog({
@@ -32,14 +33,15 @@ export function WelcomeBackDialog({
   designs,
   onLoadDesignClick,
   onCreateNewClick,
-  dialogType = "welcomeBack", // Default to welcomeBack
+  onDeleteDesign,
+  dialogType = "welcomeBack",
 }: WelcomeBackDialogProps) {
   if (!isOpen) {
     return null;
   }
 
   const sortedDesigns = [...designs].sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis());
-  const recentDesigns = sortedDesigns.slice(0, dialogType === "myDesigns" ? designs.length : 5); // Show all if "myDesigns", else top 5
+  const recentDesigns = sortedDesigns.slice(0, dialogType === "myDesigns" ? designs.length : 5);
 
   const title = dialogType === "myDesigns" ? "My Saved Designs" : "Welcome Back!";
   const description = dialogType === "myDesigns"
@@ -68,23 +70,38 @@ export function WelcomeBackDialog({
                 Recent Designs
                 </h3>
             )}
-            <ScrollArea className="h-[250px] pr-3"> {/* Increased height slightly */}
+            <ScrollArea className="h-[250px] pr-3">
               <div className="space-y-2">
                 {recentDesigns.map((design) => (
-                  <Button
-                    key={design.id}
-                    variant="outline"
-                    className="w-full justify-start h-auto py-2.5 px-3 text-left" // Slightly more padding
-                    onClick={() => onLoadDesignClick(design.id, design.name)}
-                  >
-                    <FileText className="h-4 w-4 mr-3 shrink-0" />
-                    <div className="flex flex-col">
-                      <span className="font-medium leading-tight">{design.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        Last updated: {formatDistanceToNow(design.updatedAt.toDate(), { addSuffix: true })}
-                      </span>
-                    </div>
-                  </Button>
+                   <div key={design.id} className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start h-auto py-2.5 px-3 text-left"
+                      onClick={() => onLoadDesignClick(design.id, design.name)}
+                    >
+                      <FileText className="h-4 w-4 mr-3 shrink-0" />
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <span className="font-medium leading-tight truncate">{design.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          Last updated: {formatDistanceToNow(design.updatedAt.toDate(), { addSuffix: true })}
+                        </span>
+                      </div>
+                    </Button>
+                    {dialogType === "myDesigns" && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:bg-destructive/10 h-9 w-9 shrink-0"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteDesign(design.id);
+                            }}
+                            title={`Delete ${design.name}`}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
+                  </div>
                 ))}
               </div>
             </ScrollArea>
