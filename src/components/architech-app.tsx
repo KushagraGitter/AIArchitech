@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -126,7 +125,7 @@ export function ArchitechApp() {
   const [isLoadingEvaluation, setIsLoadingEvaluation] = useState(false);
   const [isGeneratingDesign, setIsGeneratingDesign] = useState(false);
   const [isSavingDesign, setIsSavingDesign] = useState(false);
-  const [isLoadingDesigns, setIsLoadingDesigns] = useState(false);
+  const [isLoadingDesigns, setIsLoadingDesigns] = useState(true);
   const [aiFeedback, setAiFeedback] = useState<EvaluateSystemDesignOutput | null>(null);
   const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null);
   const [userDesigns, setUserDesigns] = useState<UserDesign[]>([]);
@@ -184,6 +183,7 @@ export function ArchitechApp() {
   const fetchUserDesigns = useCallback(async () => {
     if (!currentUser) {
       setUserDesigns([]);
+      setIsLoadingDesigns(false);
       return;
     }
     setIsLoadingDesigns(true);
@@ -206,7 +206,7 @@ export function ArchitechApp() {
   
   // === CORE DESIGN ACTIONS ===
 
-  const handleNewDesign = (name: string) => {
+  const handleNewDesign = (name: string = "Untitled Design") => {
     if (canvasRef.current) {
       canvasRef.current.loadTemplate(createDefaultNotes(), []);
     }
@@ -287,7 +287,7 @@ export function ArchitechApp() {
       
       if (!isAutoSave) {
         toast({ title: "Design Saved!", description: `"${currentDesignName}" has been saved.` });
-        fetchUserDesigns();
+        await fetchUserDesigns();
       } else {
         console.log(`Autosave: Successfully saved ${designIdToSave}`);
       }
@@ -309,7 +309,7 @@ export function ArchitechApp() {
       if (designId === currentDesignId) {
         handleNewDesign("Untitled Design");
       }
-      fetchUserDesigns();
+      await fetchUserDesigns();
     } catch (error) {
        toast({ title: "Delete Failed", description: "Could not delete the design.", variant: "destructive" });
     }
@@ -363,6 +363,13 @@ export function ArchitechApp() {
       setIsNewDesignDialogOpen(false);
     }
   };
+
+  const handleOpenMyDesignsDialog = async () => {
+    await fetchUserDesigns(); 
+    setIsMyDesignsDialogOpen(true);
+    setIsWelcomeBackDialogOpen(false);
+  };
+
 
   // === COMPONENT & CANVAS HANDLERS ===
   const handleNodeSelect = useCallback((node: Node<NodeData> | null) => {
@@ -619,6 +626,7 @@ export function ArchitechApp() {
 
   const handleLogout = async () => {
     await logout();
+    handleNewDesign("Untitled Design");
   };
 
   // === LIFECYCLE & SYNC EFFECTS ===
@@ -674,10 +682,10 @@ export function ArchitechApp() {
       }
     };
 
-    if (isClient) {
+    if (isClient && !authLoading) {
       initializeAppForUser();
     }
-  }, [currentUser, isClient, fetchUserDesigns, handleLoadDesign, handleSetDiagramChanged]);
+  }, [currentUser, isClient, authLoading, fetchUserDesigns, handleLoadDesign, handleSetDiagramChanged]);
 
   useEffect(() => {
     const syncCanvas = async () => {
@@ -728,7 +736,7 @@ export function ArchitechApp() {
   }, [diagramChangedSinceLastSave, currentUser, currentDesignId, isSavingDesign, handleSaveDesign]);
 
   // === RENDER LOGIC ===
-  if (!isClient || (authLoading && !currentUser)) {
+  if (!isClient || authLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -747,11 +755,7 @@ export function ArchitechApp() {
             currentDesignName={currentDesignName}
             currentUser={currentUser}
             isSavingDesign={isSavingDesign}
-            onMyDesignsClick={async () => {
-              await fetchUserDesigns();
-              setIsMyDesignsDialogOpen(true);
-              setIsWelcomeBackDialogOpen(false);
-            }}
+            onMyDesignsClick={handleOpenMyDesignsDialog}
             onSaveDesign={() => handleSaveDesign(false)}
             canSave={!!currentDesignName && diagramChangedSinceLastSave}
             onExportDesign={() => {}} // Placeholder
@@ -765,7 +769,6 @@ export function ArchitechApp() {
         />
         <div className="flex flex-1 min-h-0">
           <AppSidebar
-            aiFeedback={aiFeedback}
             groupedDesignComponents={groupedDesignComponents}
             onDragStart={onDragStart}
           />
@@ -834,8 +837,8 @@ export function ArchitechApp() {
           onClose={() => {
             setIsWelcomeBackDialogOpen(false);
             setIsMyDesignsDialogOpen(false);
-            if (!currentDesignId && canvasRef.current && !isMyDesignsDialogOpen) { 
-                handleNewDesign("Untitled Design");
+            if (!currentDesignId && !isMyDesignsDialogOpen && !isWelcomeBackDialogOpen) { 
+                handleNewDesign();
             }
           }}
           dialogType={isMyDesignsDialogOpen ? "myDesigns" : "welcomeBack"}
@@ -871,13 +874,10 @@ export function ArchitechApp() {
 
         {isNewDesignDialogOpen && (
           <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
-            if (!isOpen && !currentDesignId && currentUser && canvasRef.current) {
-              if(!isWelcomeBackDialogOpen && !isMyDesignsDialogOpen) {
-                handleNewDesign("Untitled Design");
-              }
-            }
-            if (!isOpen) setNewDesignNameInput('');
             setIsNewDesignDialogOpen(isOpen);
+            if (!isOpen && !currentDesignName) {
+                handleNewDesign();
+            }
           }}>
             <DialogContent>
               <DialogHeader>
@@ -987,5 +987,3 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
-
-    
