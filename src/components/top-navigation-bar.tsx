@@ -90,9 +90,6 @@ export function TopNavigationBar({
         <Button variant="ghost" size="icon" onClick={onImportDesignClick} title="Import Design from JSON">
             <Upload className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" onClick={onExportToTerraformClick} title="Export to Terraform (Experimental)">
-            <Code className="h-4 w-4" />
-        </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
