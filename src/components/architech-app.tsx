@@ -747,8 +747,8 @@ export function ArchitechApp() {
             currentDesignName={currentDesignName}
             currentUser={currentUser}
             isSavingDesign={isSavingDesign}
-            onMyDesignsClick={() => {
-              fetchUserDesigns();
+            onMyDesignsClick={async () => {
+              await fetchUserDesigns();
               setIsMyDesignsDialogOpen(true);
               setIsWelcomeBackDialogOpen(false);
             }}
@@ -987,5 +987,3 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
-
-    

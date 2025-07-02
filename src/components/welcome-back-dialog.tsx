@@ -73,20 +73,22 @@ export function WelcomeBackDialog({
             <ScrollArea className="h-[250px] pr-3">
               <div className="space-y-2">
                 {recentDesigns.map((design) => (
-                   <div key={design.id} className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start h-auto py-2.5 px-3 text-left"
+                   <div key={design.id} className="flex items-center gap-2 group">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="flex-1 flex items-center gap-3 w-full justify-start h-auto p-2.5 text-left border rounded-md bg-card hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
                       onClick={() => onLoadDesignClick(design.id, design.name)}
+                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onLoadDesignClick(design.id, design.name); }}
                     >
-                      <FileText className="h-4 w-4 mr-3 shrink-0" />
+                      <FileText className="h-4 w-4 mr-1 shrink-0 text-muted-foreground" />
                       <div className="flex flex-col flex-1 min-w-0">
-                        <span className="font-medium leading-tight truncate">{design.name}</span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="font-medium leading-tight text-card-foreground group-hover:text-accent-foreground">{design.name}</span>
+                        <span className="text-xs text-muted-foreground group-hover:text-accent-foreground/80">
                           Last updated: {formatDistanceToNow(design.updatedAt.toDate(), { addSuffix: true })}
                         </span>
                       </div>
-                    </Button>
+                    </div>
                     {dialogType === "myDesigns" && (
                         <Button
                             variant="ghost"
