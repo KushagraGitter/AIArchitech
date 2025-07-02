@@ -753,7 +753,7 @@ export function ArchitechApp() {
               setIsWelcomeBackDialogOpen(false);
             }}
             onSaveDesign={() => handleSaveDesign(false)}
-            canSave={!!currentDesignId && !!currentDesignName}
+            canSave={!!currentDesignName && diagramChangedSinceLastSave}
             onExportDesign={() => {}} // Placeholder
             onImportDesignClick={() => importFileRef.current?.click()}
             onExportToTerraformClick={handleExportToTerraformClick}
@@ -987,3 +987,5 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
+
+    
