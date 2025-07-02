@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -614,13 +615,13 @@ export function ArchitechApp() {
         };
         const result = await generateTerraform(input);
         setTerraformExportResult(result);
+        setIsTerraformExportDialogOpen(false);
     } catch (error) {
         console.error("Error generating Terraform:", error);
         toast({ title: "Terraform Generation Failed", variant: "destructive" });
         setIsTerraformResultModalOpen(false);
     } finally {
         setIsGeneratingTerraform(false);
-        setIsTerraformExportDialogOpen(false);
     }
   };
 
@@ -628,6 +629,63 @@ export function ArchitechApp() {
     await logout();
     handleNewDesign("Untitled Design");
   };
+
+  const handleExportDesign = useCallback(() => {
+    if (canvasRef.current && currentDesignName) {
+      const diagramJson = canvasRef.current.getDiagramJson();
+      const blob = new Blob([diagramJson], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Sanitize filename
+      const sanitizedName = currentDesignName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      a.download = `${sanitizedName || 'design'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: 'Design Exported', description: `"${currentDesignName}" has been downloaded.` });
+    }
+  }, [currentDesignName, toast]);
+
+  const handleImportDesign = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && canvasRef.current) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result;
+          if (typeof text !== 'string') throw new Error('File could not be read as text.');
+          const { nodes, edges } = JSON.parse(text);
+          // Basic validation
+          if (!Array.isArray(nodes) || !Array.isArray(edges)) {
+            throw new Error('Invalid JSON structure. "nodes" and "edges" arrays are required.');
+          }
+          
+          canvasRef.current.loadTemplate(nodes, edges);
+          
+          const newName = file.name.replace(/\.json$/i, '') + " (Imported)";
+          setCurrentDesignName(newName);
+          setCurrentDesignId(null); 
+          setCanvasLoadedDesignId(null);
+          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
+          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
+          handleSetDiagramChanged(true);
+          toast({ title: 'Import Successful', description: `Design from "${file.name}" has been loaded.` });
+
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Invalid JSON file.';
+          toast({ title: 'Import Failed', description: message, variant: 'destructive' });
+        }
+      };
+      reader.readAsText(file);
+    }
+    // Reset input value to allow re-importing the same file
+    if(importFileRef.current) {
+        importFileRef.current.value = "";
+    }
+  }, [toast, handleSetDiagramChanged]);
+
 
   // === LIFECYCLE & SYNC EFFECTS ===
 
@@ -758,7 +816,7 @@ export function ArchitechApp() {
             onMyDesignsClick={handleOpenMyDesignsDialog}
             onSaveDesign={() => handleSaveDesign(false)}
             canSave={!!currentDesignName && diagramChangedSinceLastSave}
-            onExportDesign={() => {}} // Placeholder
+            onExportDesign={handleExportDesign}
             onImportDesignClick={() => importFileRef.current?.click()}
             onExportToTerraformClick={handleExportToTerraformClick}
             onNewDesignClick={handleNewDesignButtonClick}
@@ -766,6 +824,13 @@ export function ArchitechApp() {
             onLogout={handleLogout}
             themes={themeOptions}
             setTheme={setTheme}
+        />
+        <input
+            type="file"
+            ref={importFileRef}
+            onChange={handleImportDesign}
+            className="hidden"
+            accept="application/json"
         />
         <div className="flex flex-1 min-h-0">
           <AppSidebar
@@ -987,3 +1052,5 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
+
+    
