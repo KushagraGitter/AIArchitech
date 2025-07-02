@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, SaveIcon, ListChecks, Download, Upload, UserCircle, Settings2, LogOut, Code, FilePlus2 } from 'lucide-react';
+import { Loader2, SaveIcon, ListChecks, Download, Upload, UserCircle, Settings2, LogOut, Code, FilePlus2, BookCopy } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { ThemeOption } from '@/components/theme-toggle-button'; 
@@ -27,7 +27,8 @@ interface TopNavigationBarProps {
   onExportDesign: () => void;
   onImportDesignClick: () => void;
   onExportToTerraformClick: () => void;
-  onNewDesignClick: () => void; // Added new prop
+  onNewDesignClick: () => void;
+  onBrowseTemplatesClick: () => void;
   onLogout: () => void;
   themes: ThemeOption[];
   setTheme: (theme: string) => void;
@@ -43,7 +44,8 @@ export function TopNavigationBar({
   onExportDesign,
   onImportDesignClick,
   onExportToTerraformClick,
-  onNewDesignClick, // Consumed new prop
+  onNewDesignClick,
+  onBrowseTemplatesClick,
   onLogout,
   themes,
   setTheme,
@@ -68,6 +70,10 @@ export function TopNavigationBar({
 
       {/* Right Aligned Items: Action Icons, User Menu, Settings Menu */}
       <div className="flex items-center gap-1 sm:gap-2">
+        <Button variant="ghost" onClick={onBrowseTemplatesClick} className="hidden sm:inline-flex" title="Browse Templates">
+          <BookCopy className="h-4 w-4 mr-2" />
+          Browse Templates
+        </Button>
         <Button variant="ghost" size="icon" onClick={onNewDesignClick} title="New Design">
           <FilePlus2 className="h-4 w-4" />
         </Button>
@@ -83,9 +89,6 @@ export function TopNavigationBar({
         </Button>
         <Button variant="ghost" size="icon" onClick={onImportDesignClick} title="Import Design from JSON">
             <Upload className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={onExportToTerraformClick} title="Export to Terraform (Experimental)">
-            <Code className="h-4 w-4" />
         </Button>
 
         <DropdownMenu>

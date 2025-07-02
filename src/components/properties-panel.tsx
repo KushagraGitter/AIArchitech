@@ -107,9 +107,11 @@ export function PropertiesPanel({ selectedNode, componentConfig, onUpdateNode, o
     <div className="flex flex-col h-full">
       <CardHeader className="p-4 border-b">
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Settings2 className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">{selectedNode.data.label} Properties</CardTitle>
+          <div className="flex items-center gap-2 min-w-0">
+            <Settings2 className="h-5 w-5 text-primary shrink-0" />
+            <CardTitle className="text-lg truncate" title={selectedNode.data.properties?.name || selectedNode.data.label}>
+                {(selectedNode.data.properties?.name || selectedNode.data.label)} Properties
+            </CardTitle>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7">
             <X className="h-4 w-4" />
@@ -208,5 +210,3 @@ export function PropertiesPanel({ selectedNode, componentConfig, onUpdateNode, o
     </div>
   );
 }
-
-    

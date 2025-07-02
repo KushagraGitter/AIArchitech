@@ -35,12 +35,16 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { Loader2, Sparkles } from 'lucide-react';
+import type { EvaluateSystemDesignOutput } from '@/ai/flows/evaluate-system-design';
 
 
 export interface NodeData {
   label: string;
   iconName: string;
   properties: Record<string, any>;
+  color?: string;
+  borderColor?: string;
 }
 
 export interface DesignCanvasHandles {
@@ -53,6 +57,10 @@ interface DesignCanvasProps {
   onNodeSelect: (node: Node<NodeData> | null) => void;
   onStructuralChange?: () => void;
   className?: string;
+  onEvaluateClick: () => void;
+  onSeeEvaluationClick: () => void;
+  isLoadingEvaluation: boolean;
+  aiFeedback: EvaluateSystemDesignOutput | null;
 }
 
 
@@ -61,7 +69,7 @@ const getNextNodeId = () => `dndnode_${idCounter++}`;
 const getNextEdgeId = () => `edge_${idCounter++}`;
 
 
-export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>(({ onNodeSelect, onStructuralChange, className }, ref) => {
+export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>(({ onNodeSelect, onStructuralChange, className, onEvaluateClick, onSeeEvaluationClick, isLoadingEvaluation, aiFeedback }, ref) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChangeInternal] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChangeInternal] = useEdgesState([]);
@@ -159,7 +167,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
 
       if (!dataString) return;
 
-      const { name, iconName, properties: initialProperties } = JSON.parse(dataString);
+      const { name, iconName, properties: initialProperties, color, borderColor } = JSON.parse(dataString);
 
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX - reactFlowBounds.left,
@@ -173,7 +181,9 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
         data: {
           label: name,
           iconName: iconName,
-          properties: initialProperties || {}
+          properties: initialProperties || {},
+          color,
+          borderColor,
         },
       };
 
@@ -275,7 +285,7 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
   }));
 
   return (
-      <div className={cn("w-full flex flex-col", className)} ref={reactFlowWrapper}>
+      <div className={cn("w-full h-full flex flex-col relative", className)} ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -314,6 +324,43 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
             className="!bg-card border border-border rounded-md shadow-lg"
           />
         </ReactFlow>
+
+        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+            {aiFeedback && !isLoadingEvaluation && (
+                <Button
+                    onClick={onSeeEvaluationClick}
+                    variant="outline"
+                    className="shadow-lg rounded-full bg-card/80 backdrop-blur-sm"
+                >
+                    <Sparkles className="mr-2 h-4 w-4 text-primary" />
+                    See Evaluation
+                </Button>
+            )}
+
+            <Button
+                onClick={onEvaluateClick}
+                disabled={isLoadingEvaluation}
+                className={cn(
+                "shadow-lg rounded-full",
+                !isLoadingEvaluation && !aiFeedback && "animate-ai-border-pulse"
+                )}
+            >
+                {isLoadingEvaluation ? (
+                <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Evaluating...
+                </>
+                ) : (
+                <>
+                    <Sparkles className={cn(
+                    "mr-2 h-4 w-4",
+                    !isLoadingEvaluation && !aiFeedback && "animate-ai-sparkle-pulse"
+                    )} />
+                    {aiFeedback ? 'Evaluate Again' : 'Evaluate Design'}
+                </>
+                )}
+            </Button>
+        </div>
 
         {isEdgeDialogVisible && (
           <Dialog open={isEdgeDialogVisible} onOpenChange={(isOpen) => {
