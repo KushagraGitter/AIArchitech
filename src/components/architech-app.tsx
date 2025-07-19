@@ -207,20 +207,48 @@ export function ArchitechApp() {
   
   // === CORE DESIGN ACTIONS ===
 
-  const handleNewDesign = (name: string = "Untitled Design") => {
+  const handleNewDesign = useCallback(async (name: string = "Untitled Design") => {
+    if (!currentUser) return;
+
     if (canvasRef.current) {
-      canvasRef.current.loadTemplate(createDefaultNotes(), []);
+        canvasRef.current.loadTemplate(createDefaultNotes(), []);
     }
     setCurrentDesignName(name);
-    setCurrentDesignId(null); 
+    setCurrentDesignId(null);
     setAiFeedback(null);
     setChatMessages([]);
     setSelectedNode(null);
-    handleSetDiagramChanged(true); 
     localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
     localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-    setCanvasLoadedDesignId(`new_${Date.now()}`); 
-  };
+    
+    // Immediately save the new design to get an ID
+    try {
+        const designData = {
+            name: name,
+            nodes: createDefaultNotes(),
+            edges: [],
+            userId: currentUser.uid,
+            updatedAt: serverTimestamp(),
+            createdAt: serverTimestamp(),
+        };
+        const docRef = await addDoc(collection(db, 'designs'), designData);
+        
+        setCurrentDesignId(docRef.id);
+        setCurrentDesignName(name); // Ensure name is set
+        setCanvasLoadedDesignId(docRef.id);
+        handleSetDiagramChanged(false); // It's just saved
+
+        localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID, docRef.id);
+        localStorage.setItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME, name);
+        
+        // Optionally fetch designs again to update "My Designs" list
+        await fetchUserDesigns();
+
+    } catch (error) {
+        console.error("Error creating new design:", error);
+        toast({ title: "Creation Failed", description: "Could not create a new design.", variant: "destructive" });
+    }
+  }, [currentUser, fetchUserDesigns, toast, handleSetDiagramChanged]);
   
   const handleLoadDesign = useCallback(async (designId: string, designName: string) => {
     try {
@@ -308,7 +336,7 @@ export function ArchitechApp() {
       toast({ title: "Design Deleted", description: "The design was successfully deleted." });
 
       if (designId === currentDesignId) {
-        handleNewDesign("Untitled Design");
+        await handleNewDesign("Untitled Design");
       }
       await fetchUserDesigns();
     } catch (error) {
@@ -327,7 +355,7 @@ export function ArchitechApp() {
         setCanvasLoadedDesignId(null);
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
         localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-        handleSetDiagramChanged(false);
+        handleSetDiagramChanged(true); // Mark as changed to trigger save logic
         toast({
           title: "Template Loaded!",
           description: `You are now working on a copy of the "${name}" template.`,
@@ -345,7 +373,7 @@ export function ArchitechApp() {
 
   // === DIALOG HANDLERS ===
   const handleNewDesignButtonClick = () => {
-    if (diagramChangedSinceLastSave) {
+    if (diagramChangedSinceLastSave && currentDesignId) {
         // Here you might want a confirmation dialog
         handleOpenNewDesignDialog(true);
     } else {
@@ -358,9 +386,9 @@ export function ArchitechApp() {
     setIsNewDesignDialogOpen(isOpen);
   };
   
-  const confirmNewDesign = () => {
+  const confirmNewDesign = async () => {
     if (newDesignNameInput.trim()) {
-      handleNewDesign(newDesignNameInput.trim());
+      await handleNewDesign(newDesignNameInput.trim());
       setIsNewDesignDialogOpen(false);
     }
   };
@@ -517,17 +545,9 @@ export function ArchitechApp() {
       const result = await generateDiagram({ requirements: extractedRequirements });
 
       if (canvasRef.current) {
-        canvasRef.current.loadTemplate(result.nodes, result.edges);
-        setSelectedNode(null);
-        setChatMessages([]);
-
-        const newName = "Generated Design (Unsaved)";
-        setCurrentDesignName(newName);
-        setCurrentDesignId(null);
-        setCanvasLoadedDesignId(null);
-        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-        localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-        handleSetDiagramChanged(false);
+        // This will create an unsaved template. User needs to save it.
+        loadTemplate(result.nodes, result.edges, "Generated Design");
+        handleSetDiagramChanged(true);
 
         toast({
           title: "Diagram Generated!",
@@ -612,13 +632,15 @@ export function ArchitechApp() {
         const input: GenerateTerraformInput = {
             diagramJson,
             targetProvider: selectedTerraformProvider,
+            // You can add additional requirements here if needed
+            // additionalRequirements: "Use t3.micro instances",
         };
         const result = await generateTerraform(input);
         setTerraformExportResult(result);
         setIsTerraformExportDialogOpen(false);
     } catch (error) {
         console.error("Error generating Terraform:", error);
-        toast({ title: "Terraform Generation Failed", variant: "destructive" });
+        toast({ title: "Terraform Generation Failed", description: error instanceof Error ? error.message : "An unknown error occurred", variant: "destructive" });
         setIsTerraformResultModalOpen(false);
     } finally {
         setIsGeneratingTerraform(false);
@@ -627,7 +649,7 @@ export function ArchitechApp() {
 
   const handleLogout = async () => {
     await logout();
-    handleNewDesign("Untitled Design");
+    await handleNewDesign("Untitled Design");
   };
 
   const handleExportDesign = useCallback(() => {
@@ -662,15 +684,10 @@ export function ArchitechApp() {
             throw new Error('Invalid JSON structure. "nodes" and "edges" arrays are required.');
           }
           
-          canvasRef.current.loadTemplate(nodes, edges);
+          const newName = file.name.replace(/\.json$/i, '');
+          loadTemplate(nodes, edges, newName);
+          handleSetDiagramChanged(true); // Mark as changed to trigger save
           
-          const newName = file.name.replace(/\.json$/i, '') + " (Imported)";
-          setCurrentDesignName(newName);
-          setCurrentDesignId(null); 
-          setCanvasLoadedDesignId(null);
-          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_ID);
-          localStorage.removeItem(LOCAL_STORAGE_ACTIVE_DESIGN_NAME);
-          handleSetDiagramChanged(true);
           toast({ title: 'Import Successful', description: `Design from "${file.name}" has been loaded.` });
 
         } catch (err) {
@@ -732,7 +749,7 @@ export function ArchitechApp() {
         }
       } else {
          if (!currentDesignId && canvasRef.current) { 
-             canvasRef.current.loadTemplate(createDefaultNotes(), []);
+             await handleNewDesign("Untitled Design");
              setCanvasLoadedDesignId(null); 
              handleSetDiagramChanged(false);
         }
@@ -743,7 +760,7 @@ export function ArchitechApp() {
     if (isClient && !authLoading) {
       initializeAppForUser();
     }
-  }, [currentUser, isClient, authLoading, fetchUserDesigns, handleLoadDesign, handleSetDiagramChanged]);
+  }, [currentUser, isClient, authLoading, fetchUserDesigns, handleLoadDesign, handleNewDesign, handleSetDiagramChanged]);
 
   useEffect(() => {
     const syncCanvas = async () => {
@@ -757,14 +774,14 @@ export function ArchitechApp() {
           setCurrentDesignName(null);
           setCanvasLoadedDesignId(null);
           setInitialDialogFlowPending(true); 
-          if (canvasRef.current) canvasRef.current.loadTemplate(createDefaultNotes(), []);
+          if (canvasRef.current) await handleNewDesign("Untitled Design");
         }
         setIsCanvasSyncing(false);
       }
     };
     const timer = setTimeout(syncCanvas, 100); 
     return () => clearTimeout(timer);
-  }, [currentDesignId, currentDesignName, canvasLoadedDesignId, isCanvasSyncing, handleLoadDesign]);
+  }, [currentDesignId, currentDesignName, canvasLoadedDesignId, isCanvasSyncing, handleLoadDesign, handleNewDesign]);
 
   useEffect(() => {
     if (currentUser && initialDialogFlowPending && !isLoadingDesigns && currentDesignId === null) {
@@ -781,9 +798,10 @@ export function ArchitechApp() {
     if (autosaveTimer.current) {
       clearTimeout(autosaveTimer.current);
     }
+    // Autosave is active if there are changes, a user is logged in, there is a designId, and not currently doing a manual save.
     if (diagramChangedSinceLastSave && currentUser && currentDesignId && !isSavingDesign) {
       autosaveTimer.current = setTimeout(() => {
-        handleSaveDesign(true);
+        handleSaveDesign(true); // isAutoSave = true
       }, AUTOSAVE_DELAY_MS);
     }
     return () => {
@@ -815,7 +833,7 @@ export function ArchitechApp() {
             isSavingDesign={isSavingDesign}
             onMyDesignsClick={handleOpenMyDesignsDialog}
             onSaveDesign={() => handleSaveDesign(false)}
-            canSave={!!currentDesignName && diagramChangedSinceLastSave}
+            canSave={!!(currentDesignName && (diagramChangedSinceLastSave || !currentDesignId))}
             onExportDesign={handleExportDesign}
             onImportDesignClick={() => importFileRef.current?.click()}
             onExportToTerraformClick={handleExportToTerraformClick}
@@ -940,7 +958,7 @@ export function ArchitechApp() {
         {isNewDesignDialogOpen && (
           <Dialog open={isNewDesignDialogOpen} onOpenChange={(isOpen) => {
             setIsNewDesignDialogOpen(isOpen);
-            if (!isOpen && !currentDesignName) {
+            if (!isOpen && !currentDesignName && !currentDesignId) {
                 handleNewDesign();
             }
           }}>
@@ -1052,5 +1070,3 @@ export function ArchitechApp() {
     </SidebarProvider>
   );
 }
-
-    
