@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, SaveIcon, ListChecks, Download, Upload, UserCircle, Settings2, LogOut, Code, FilePlus2, BookCopy } from 'lucide-react';
+import { Loader2, SaveIcon, ListChecks, Download, Upload, UserCircle, Settings2, LogOut, Code, FilePlus2, BookCopy, FileJson, Image, FileImage } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { ThemeOption } from '@/components/theme-toggle-button'; 
@@ -25,6 +25,8 @@ interface TopNavigationBarProps {
   onSaveDesign: () => void;
   canSave: boolean;
   onExportDesign: () => void;
+  onExportAsPng: () => void;
+  onExportAsSvg: () => void;
   onImportDesignClick: () => void;
   onExportToTerraformClick: () => void;
   onNewDesignClick: () => void;
@@ -42,6 +44,8 @@ export function TopNavigationBar({
   onSaveDesign,
   canSave,
   onExportDesign,
+  onExportAsPng,
+  onExportAsSvg,
   onImportDesignClick,
   onExportToTerraformClick,
   onNewDesignClick,
@@ -84,9 +88,34 @@ export function TopNavigationBar({
             <SaveIcon className="h-4 w-4" />
           )}
         </Button>
-        <Button variant="ghost" size="icon" onClick={onExportDesign} title="Export Design as JSON">
-            <Download className="h-4 w-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" title="Export Design">
+              <Download className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Export Design</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onExportDesign} className="cursor-pointer">
+              <FileJson className="mr-2 h-4 w-4" />
+              <span>Export as JSON</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportAsPng} className="cursor-pointer">
+              <Image className="mr-2 h-4 w-4" />
+              <span>Export as PNG</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportAsSvg} className="cursor-pointer">
+              <FileImage className="mr-2 h-4 w-4" />
+              <span>Export as SVG</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onExportToTerraformClick} className="cursor-pointer">
+              <Code className="mr-2 h-4 w-4" />
+              <span>Export to Terraform</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="ghost" size="icon" onClick={onImportDesignClick} title="Import Design from JSON">
             <Upload className="h-4 w-4" />
         </Button>

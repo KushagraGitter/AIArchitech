@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { toPng, toSvg } from 'html-to-image';
 import ReactFlow, {
   addEdge,
   useNodesState,
@@ -51,6 +52,8 @@ export interface DesignCanvasHandles {
   getDiagramJson: () => string;
   loadTemplate: (nodes: Node<NodeData>[], edges: Edge[]) => void;
   updateNodeProperties: (nodeId: string, properties: Record<string, any>) => void;
+  exportAsPng: () => Promise<string>;
+  exportAsSvg: () => Promise<string>;
 }
 
 interface DesignCanvasProps {
@@ -281,6 +284,37 @@ export const DesignCanvas = forwardRef<DesignCanvasHandles, DesignCanvasProps>((
           return node;
         })
       );
+    },
+    exportAsPng: async () => {
+      if (!reactFlowWrapper.current) return '';
+      reactFlowInstance?.fitView({ padding: 0.15 });
+      await new Promise(r => setTimeout(r, 200));
+      return toPng(reactFlowWrapper.current, {
+        pixelRatio: 2,
+        filter: (node) => {
+          if (node instanceof Element) {
+            return !node.classList.contains('react-flow__minimap') &&
+                   !node.classList.contains('react-flow__controls') &&
+                   !node.classList.contains('absolute');
+          }
+          return true;
+        },
+      });
+    },
+    exportAsSvg: async () => {
+      if (!reactFlowWrapper.current) return '';
+      reactFlowInstance?.fitView({ padding: 0.15 });
+      await new Promise(r => setTimeout(r, 200));
+      return toSvg(reactFlowWrapper.current, {
+        filter: (node) => {
+          if (node instanceof Element) {
+            return !node.classList.contains('react-flow__minimap') &&
+                   !node.classList.contains('react-flow__controls') &&
+                   !node.classList.contains('absolute');
+          }
+          return true;
+        },
+      });
     },
   }));
 

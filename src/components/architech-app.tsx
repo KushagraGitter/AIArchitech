@@ -648,6 +648,40 @@ export function ArchitechApp() {
     }
   }, [currentDesignName, toast]);
 
+  const handleExportAsPng = useCallback(async () => {
+    if (!canvasRef.current || !currentDesignName) return;
+    try {
+      const dataUrl = await canvasRef.current.exportAsPng();
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      const sanitizedName = currentDesignName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      a.download = `${sanitizedName || 'design'}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast({ title: 'Exported as PNG', description: `"${currentDesignName}" has been downloaded.` });
+    } catch (err) {
+      toast({ title: 'Export Failed', description: 'Could not export as PNG.', variant: 'destructive' });
+    }
+  }, [currentDesignName, toast]);
+
+  const handleExportAsSvg = useCallback(async () => {
+    if (!canvasRef.current || !currentDesignName) return;
+    try {
+      const dataUrl = await canvasRef.current.exportAsSvg();
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      const sanitizedName = currentDesignName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      a.download = `${sanitizedName || 'design'}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast({ title: 'Exported as SVG', description: `"${currentDesignName}" has been downloaded.` });
+    } catch (err) {
+      toast({ title: 'Export Failed', description: 'Could not export as SVG.', variant: 'destructive' });
+    }
+  }, [currentDesignName, toast]);
+
   const handleImportDesign = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && canvasRef.current) {
@@ -817,6 +851,8 @@ export function ArchitechApp() {
             onSaveDesign={() => handleSaveDesign(false)}
             canSave={!!currentDesignName && diagramChangedSinceLastSave}
             onExportDesign={handleExportDesign}
+            onExportAsPng={handleExportAsPng}
+            onExportAsSvg={handleExportAsSvg}
             onImportDesignClick={() => importFileRef.current?.click()}
             onExportToTerraformClick={handleExportToTerraformClick}
             onNewDesignClick={handleNewDesignButtonClick}
